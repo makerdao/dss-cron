@@ -17,14 +17,9 @@ pragma solidity 0.8.9;
 
 import "ds-test/test.sol";
 
-import "./DssCron.sol";
-
 contract DssCronTest is DSTest {
 
-    DssCron cron;
-
     function setUp() public {
-        cron = new DssCron();
     }
 
 }

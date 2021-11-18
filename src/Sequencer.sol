@@ -44,7 +44,7 @@ contract Sequencer {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event File(bytes32 indexed what, address data);
+    event File(bytes32 indexed what, uint256 data);
     event AddNetwork(bytes32 indexed network);
     event RemoveNetwork(bytes32 indexed network);
 
@@ -74,7 +74,7 @@ contract Sequencer {
 
         bytes32 network = activeNetworks[index];
         if (index != activeNetworks.length - 1) {
-            activeNetworks[index] = activeNetworks[active.length - 1];
+            activeNetworks[index] = activeNetworks[activeNetworks.length - 1];
         }
         activeNetworks.pop();
         networks[network] = false;
