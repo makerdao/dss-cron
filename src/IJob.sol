@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity ^0.8.9;
+
 interface IJob {
     function getNextJob(bytes32 operator) external view returns (bool canExec, address target, bytes memory execPayload);
 }
