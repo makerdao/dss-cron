@@ -1,4 +1,4 @@
-all    :; dapp build
+all    :; DAPP_BUILD_OPTIMIZE=1 DAPP_BUILD_OPTIMIZE_RUNS=200 dapp --use solc:0.8.9 build
 clean  :; dapp clean
-test   :; dapp test
-deploy :; dapp create DssCron
+test   :; ./test.sh $(match)
+deploy :; make && dapp create DssCron
