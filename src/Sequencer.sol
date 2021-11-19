@@ -84,7 +84,15 @@ contract Sequencer {
 
     // --- Views ---
     function isMaster(bytes32 network) external view returns (bool) {
+        if (activeNetworks.length == 0) return false;
+
         return network == activeNetworks[(block.number / window) % activeNetworks.length];
+    }
+    function count() external view returns (uint256) {
+        return activeNetworks.length;
+    }
+    function list() external view returns (bytes32[] memory) {
+        return activeNetworks;
     }
 
 }
