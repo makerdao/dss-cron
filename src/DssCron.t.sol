@@ -38,10 +38,15 @@ interface AutoLineLike {
     function vat() external view returns (address);
     function ilks(bytes32) external view returns (uint256, uint256, uint48, uint48, uint48);
     function exec(bytes32) external returns (uint256);
+    function setIlk(bytes32,uint256,uint256,uint256) external;
 }
 
 interface VatLike {
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
+    function slip(bytes32, address, int256) external;
+    function frob(bytes32, address, address, address, int256, int256) external;
+    function init(bytes32) external;
+    function file(bytes32, bytes32, uint256) external;
 }
 
 // Integration tests against live MCD
@@ -64,6 +69,7 @@ contract DssCronTest is DSTest {
     bytes32 constant NET_A = "NTWK-A";
     bytes32 constant NET_B = "NTWK-B";
     bytes32 constant NET_C = "NTWK-C";
+    bytes32 constant ILK = "TEST-ILK";
 
     function setUp() public {
         hevm = Hevm(HEVM_ADDRESS);
@@ -77,7 +83,6 @@ contract DssCronTest is DSTest {
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         autoLineJob = new AutoLineJob(address(sequencer), address(ilkRegistry), address(autoline), 5000, 2500);     // 50% / 25% bands
 
-        giveAuthAccess(address(vat), address(this));
     }
 
     function giveAuthAccess(address _base, address target) internal {
@@ -165,13 +170,52 @@ contract DssCronTest is DSTest {
             assertTrue(sequencer.isMaster(networks[0]) == ((block.number / sequencer.window()) % sequencer.count() == 0));
             assertTrue(sequencer.isMaster(networks[1]) == ((block.number / sequencer.window()) % sequencer.count() == 1));
             assertTrue(sequencer.isMaster(networks[2]) == ((block.number / sequencer.window()) % sequencer.count() == 2));
+            assertEq(
+                (sequencer.isMaster(networks[0]) ? 1 : 0) +
+                (sequencer.isMaster(networks[1]) ? 1 : 0) +
+                (sequencer.isMaster(networks[2]) ? 1 : 0)
+            , 1);       // Only one active at a time
 
             hevm.roll(block.number + 1);
         }
     }
 
-    function test_autolinejob_raise_line() public {
+    // --- AutoLineJob tests ---
 
+    function mint(bytes32 ilk, uint256 wad) internal {
+        vat.slip(ilk, address(this), int256(wad));
+        vat.frob(ilk, address(this), address(this), address(this), int256(wad), int256(wad));
+    }
+    function repay(bytes32 ilk, uint256 wad) internal {
+        vat.frob(ilk, address(this), address(this), address(this), -int256(wad), -int256(wad));
+        vat.slip(ilk, address(this), -int256(wad));
+    }
+
+    function init_autoline() internal {
+        giveAuthAccess(address(vat), address(this));
+        giveAuthAccess(address(autoline), address(this));
+
+        // Setup a dummy ilk in the vat
+        vat.init(ILK);
+        vat.file(ILK, "spot", RAY);
+        vat.file(ILK, "line", 1_000 * RAD);
+        autoline.setIlk(ILK, 100_000 * RAD, 1_000 * RAD, 8 hours);
+
+        // Add a default network
+        sequencer.addNetwork(NET_A);
+
+        // Clear out any autolines that need to be triggered
+        /*while(true) {
+            (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(NET_A);
+            if (!canExec) break;
+            target.call(execPayload);
+        }*/
+    }
+
+    function test_autolinejob_raise_line() public {
+        init_autoline();
+
+        mint(ILK, 300 * WAD);           // Over the threshold to raise the DC
     }
 
 }
