@@ -252,12 +252,22 @@ contract DssCronTest is DSTest {
         assertTrue(line != newLine, "Line should have changed.");
     }
 
+    function verify_no_autoline_job() internal {
+        (bool canExec, address target,) = autoLineJob.getNextJob(network);
+        assertTrue(canExec);
+        assertEq(target, address(0));
+    }
+
     function test_autolinejob_raise_line() public {
         init_autoline();
+
+        verify_no_autoline_job();
 
         mint(ILK, 110 * WAD);           // Over the threshold to raise the DC (10%)
 
         trigger_next_autoline_job(NET_A, ILK);
+
+        verify_no_autoline_job();
     }
 
 }
