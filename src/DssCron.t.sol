@@ -39,6 +39,7 @@ interface AutoLineLike {
     function ilks(bytes32) external view returns (uint256, uint256, uint48, uint48, uint48);
     function exec(bytes32) external returns (uint256);
     function setIlk(bytes32,uint256,uint256,uint256) external;
+    function remIlk(bytes32) external;
 }
 
 interface VatLike {
@@ -197,6 +198,20 @@ contract DssCronTest is DSTest {
         assertEq(nextArt, Art - wad);
     }
 
+    function clear_other_ilks(bytes32 network) internal {
+        while(true) {
+            (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(network);
+            if (!canExec) break;
+            bytes32 ilk = abi.decode(execPayload, (bytes32));
+            if (ilk == ILK) break;
+            (,,, uint256 line,) = vat.ilks(ilk);
+            (bool success, bytes memory result) = target.call(execPayload);
+            uint256 newLine = abi.decode(result, (uint256));
+            assertTrue(success, "Execution should have succeeded.");
+            assertTrue(line != newLine, "Line should have changed.");
+        }
+    }
+
     function init_autoline() internal {
         giveAuthAccess(address(vat), address(this));
         giveAuthAccess(address(autoline), address(this));
@@ -225,16 +240,7 @@ contract DssCronTest is DSTest {
         sequencer.addNetwork(NET_A);
 
         // Clear out any autolines that need to be triggered
-        while(true) {
-            (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(NET_A);
-            if (!canExec) break;
-            bytes32 ilk = abi.decode(execPayload, (bytes32));
-            (,,, uint256 line,) = vat.ilks(ilk);
-            (bool success, bytes memory result) = target.call(execPayload);
-            uint256 newLine = abi.decode(result, (uint256));
-            assertTrue(success, "Execution should have succeeded.");
-            assertTrue(line != newLine, "Line should have changed.");
-        }
+        clear_other_ilks(NET_A);
     }
 
     function trigger_next_autoline_job(bytes32 network, bytes32 ilk) internal {
@@ -252,22 +258,115 @@ contract DssCronTest is DSTest {
         assertTrue(line != newLine, "Line should have changed.");
     }
 
-    function verify_no_autoline_job() internal {
+    function verify_no_autoline_job(bytes32 network) internal {
         (bool canExec, address target,) = autoLineJob.getNextJob(network);
-        assertTrue(canExec);
+        assertTrue(!canExec);
         assertEq(target, address(0));
     }
 
     function test_autolinejob_raise_line() public {
         init_autoline();
 
-        verify_no_autoline_job();
+        verify_no_autoline_job(NET_A);
 
         mint(ILK, 110 * WAD);           // Over the threshold to raise the DC (10%)
 
         trigger_next_autoline_job(NET_A, ILK);
 
-        verify_no_autoline_job();
+        verify_no_autoline_job(NET_A);
+    }
+
+    function test_autolinejob_disabled() public {
+        init_autoline();
+
+        verify_no_autoline_job(NET_A);
+
+        mint(ILK, 110 * WAD);
+
+        // Disable the autoline
+        autoline.remIlk(ILK);
+
+        verify_no_autoline_job(NET_A);
+    }
+
+    function test_autolinejob_same_block() public {
+        init_autoline();
+
+        verify_no_autoline_job(NET_A);
+
+        mint(ILK, 200 * WAD);
+        trigger_next_autoline_job(NET_A, ILK);
+        mint(ILK, 200 * WAD);
+        verify_no_autoline_job(NET_A);
+    }
+
+    function test_autolinejob_under_ttl() public {
+        init_autoline();
+
+        verify_no_autoline_job(NET_A);
+
+        mint(ILK, 200 * WAD);
+        trigger_next_autoline_job(NET_A, ILK);
+
+        hevm.roll(block.number + 1);
+        
+        // It's possible some other ilks are valid now
+        clear_other_ilks(NET_A);
+
+        mint(ILK, 200 * WAD);
+        verify_no_autoline_job(NET_A);
+    }
+
+    function test_autolinejob_diff_block_ttl() public {
+        init_autoline();
+
+        verify_no_autoline_job(NET_A);
+
+        mint(ILK, 200 * WAD);
+        trigger_next_autoline_job(NET_A, ILK);
+
+        hevm.roll(block.number + 1);
+        hevm.warp(block.timestamp + 8 hours);
+        
+        // It's possible some other ilks are valid now
+        clear_other_ilks(NET_A);
+
+        mint(ILK, 200 * WAD);
+        trigger_next_autoline_job(NET_A, ILK);
+    }
+
+    function test_autolinejob_lower_line() public {
+        init_autoline();
+
+        verify_no_autoline_job(NET_A);
+
+        mint(ILK, 1000 * WAD);
+        trigger_next_autoline_job(NET_A, ILK);
+        hevm.roll(block.number + 1);
+        hevm.warp(block.timestamp + 8 hours);
+        clear_other_ilks(NET_A);
+        mint(ILK, 1000 * WAD);
+        trigger_next_autoline_job(NET_A, ILK);
+        hevm.roll(block.number + 1);
+        repay(ILK, 200 * WAD);      // 20% threshold of gap
+        trigger_next_autoline_job(NET_A, ILK);
+        verify_no_autoline_job(NET_A);
+    }
+
+    function test_autolinejob_gap_change() public {
+        init_autoline();
+
+        // Adjust max line / gap
+        autoline.setIlk(ILK, 6_000 * RAD, 5_000 * RAD, 8 hours);
+
+        verify_no_autoline_job(NET_A);
+        mint(ILK, 800 * WAD);
+        trigger_next_autoline_job(NET_A, ILK);
+        hevm.roll(block.number + 1);
+        hevm.warp(block.timestamp + 8 hours);
+        clear_other_ilks(NET_A);
+        mint(ILK, 200 * WAD);
+        trigger_next_autoline_job(NET_A, ILK);
     }
 
 }

@@ -75,7 +75,7 @@ contract AutoLineJob is IJob {
             if (nextLine > line && block.timestamp < lastInc + ttl) continue;           // TTL hasn't expired
 
             // Check if nextLine is inside our do-nothing range (special exception if nextLine == maxLine)
-            if (nextLine != maxLine && line - gap * tlo / BPS <= nextLine && nextLine <= line + gap * thi / BPS) continue;
+            if (nextLine != maxLine && line < nextLine + gap * tlo / BPS && nextLine < line + gap * thi / BPS) continue;
             if (line == maxLine) continue;  // Don't trigger if we are already at maxLine
 
             // Good to adjust!
