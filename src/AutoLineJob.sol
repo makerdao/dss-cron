@@ -44,16 +44,16 @@ contract AutoLineJob is IJob {
     IlkRegistryLike public immutable ilkRegistry;
     AutoLineLike public immutable autoline;
     VatLike public immutable vat;
-    uint256 public immutable tlo;                       // % below the previously exec'ed debt level
     uint256 public immutable thi;                       // % above the previously exec'ed debt level
+    uint256 public immutable tlo;                       // % below the previously exec'ed debt level
 
-    constructor(address _sequencer, address _ilkRegistry, address _autoline, uint256 _tlo, uint256 _thi) {
+    constructor(address _sequencer, address _ilkRegistry, address _autoline, uint256 _thi, uint256 _tlo) {
         sequencer = SequencerLike(_sequencer);
         ilkRegistry = IlkRegistryLike(_ilkRegistry);
         autoline = AutoLineLike(_autoline);
         vat = VatLike(autoline.vat());
-        tlo = _tlo;
         thi = _thi;
+        tlo = _tlo;
     }
 
     function getNextJob(bytes32 network) external view override returns (bool, address, bytes memory) {
@@ -74,8 +74,8 @@ contract AutoLineJob is IJob {
             if (last == block.number) continue;                                         // Already triggered this block
             if (nextLine > line && block.timestamp < lastInc + ttl) continue;           // TTL hasn't expired
 
-            // Check if nextLine is outside our do-nothing range (special exception if nextLine == maxLine)
-            if (nextLine != maxLine && (nextLine < line - gap * tlo / BPS || line + gap * thi / BPS < nextLine)) continue;
+            // Check if nextLine is inside our do-nothing range (special exception if nextLine == maxLine)
+            if (nextLine != maxLine && line - gap * tlo / BPS <= nextLine && nextLine <= line + gap * thi / BPS) continue;
             if (line == maxLine) continue;  // Don't trigger if we are already at maxLine
 
             // Good to adjust!

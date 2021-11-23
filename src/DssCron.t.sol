@@ -81,7 +81,7 @@ contract DssCronTest is DSTest {
         ilkRegistry = IlkRegistryLike(0x5a464C28D19848f44199D003BeF5ecc87d090F87);
         autoline = AutoLineLike(0xC7Bdd1F2B16447dcf3dE045C4a039A60EC2f0ba3);
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-        autoLineJob = new AutoLineJob(address(sequencer), address(ilkRegistry), address(autoline), 5000, 2500);     // 50% / 25% bands
+        autoLineJob = new AutoLineJob(address(sequencer), address(ilkRegistry), address(autoline), 1000, 2000);     // 10% / 20% bands
 
     }
 
@@ -183,12 +183,18 @@ contract DssCronTest is DSTest {
     // --- AutoLineJob tests ---
 
     function mint(bytes32 ilk, uint256 wad) internal {
+        (uint256 Art,,,,) = vat.ilks(ilk);
         vat.slip(ilk, address(this), int256(wad));
         vat.frob(ilk, address(this), address(this), address(this), int256(wad), int256(wad));
+        (uint256 nextArt,,,,) = vat.ilks(ilk);
+        assertEq(nextArt, Art + wad);
     }
     function repay(bytes32 ilk, uint256 wad) internal {
+        (uint256 Art,,,,) = vat.ilks(ilk);
         vat.frob(ilk, address(this), address(this), address(this), -int256(wad), -int256(wad));
         vat.slip(ilk, address(this), -int256(wad));
+        (uint256 nextArt,,,,) = vat.ilks(ilk);
+        assertEq(nextArt, Art - wad);
     }
 
     function init_autoline() internal {
@@ -201,21 +207,57 @@ contract DssCronTest is DSTest {
         vat.file(ILK, "line", 1_000 * RAD);
         autoline.setIlk(ILK, 100_000 * RAD, 1_000 * RAD, 8 hours);
 
+        // Add to ilk regitry as well (only care about the ilk ids array)
+        bytes32 pos = bytes32(uint256(5));
+        uint256 size = uint256(hevm.load(address(ilkRegistry), pos));
+        hevm.store(
+            address(ilkRegistry),
+            bytes32(uint256(keccak256(abi.encode(pos))) + size),
+            ILK
+        );      // Append new ilk
+        hevm.store(
+            address(ilkRegistry),
+            pos,
+            bytes32(size + 1)
+        );      // Increase size of array
+
         // Add a default network
         sequencer.addNetwork(NET_A);
 
         // Clear out any autolines that need to be triggered
-        /*while(true) {
+        while(true) {
             (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(NET_A);
             if (!canExec) break;
-            target.call(execPayload);
-        }*/
+            bytes32 ilk = abi.decode(execPayload, (bytes32));
+            (,,, uint256 line,) = vat.ilks(ilk);
+            (bool success, bytes memory result) = target.call(execPayload);
+            uint256 newLine = abi.decode(result, (uint256));
+            assertTrue(success, "Execution should have succeeded.");
+            assertTrue(line != newLine, "Line should have changed.");
+        }
+    }
+
+    function trigger_next_autoline_job(bytes32 network, bytes32 ilk) internal {
+        (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(network);
+        assertTrue(canExec, "Expecting to be able to execute.");
+        assertEq(target, address(autoline));
+        bytes memory expectedPayload = abi.encodeWithSelector(AutoLineLike.exec.selector, ilk);
+        for (uint256 i = 0; i < expectedPayload.length; i++) {
+            assertEq(execPayload[i], expectedPayload[i]);
+        }
+        (,,, uint256 line,) = vat.ilks(ilk);
+        (bool success, bytes memory result) = target.call(execPayload);
+        uint256 newLine = abi.decode(result, (uint256));
+        assertTrue(success, "Execution should have succeeded.");
+        assertTrue(line != newLine, "Line should have changed.");
     }
 
     function test_autolinejob_raise_line() public {
         init_autoline();
 
-        mint(ILK, 300 * WAD);           // Over the threshold to raise the DC
+        mint(ILK, 110 * WAD);           // Over the threshold to raise the DC (10%)
+
+        trigger_next_autoline_job(NET_A, ILK);
     }
 
 }
