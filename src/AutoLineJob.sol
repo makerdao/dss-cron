@@ -70,13 +70,20 @@ contract AutoLineJob is IJob {
             if (nextLine > maxLine) nextLine = maxLine;
 
             // Check autoline rules
-            if (maxLine == 0) continue;                                                 // Ilk is not enabled
-            if (last == block.number) continue;                                         // Already triggered this block
-            if (nextLine > line && block.timestamp < lastInc + ttl) continue;           // TTL hasn't expired
+            if (maxLine == 0) continue;                     // Ilk is not enabled
+            if (last == block.number) continue;             // Already triggered this block
+            if (line == nextLine ||                         // No change in line
+                nextLine > line &&                          // Increase in line
+                block.timestamp < lastInc + ttl) continue;  // TTL hasn't expired
 
-            // Check if nextLine is inside our do-nothing range (special exception if nextLine == maxLine)
-            if (nextLine != maxLine && line < nextLine + gap * tlo / BPS && nextLine < line + gap * thi / BPS) continue;
-            if (line == maxLine) continue;  // Don't trigger if we are already at maxLine
+            // Check if current debt level is inside our do-nothing range
+            // Re-arranged to remove any subtraction (and thus underflow)
+            // Exception if we are at the maxLine
+            if (
+                nextLine != maxLine &&
+                debt + gap < line + gap * thi / BPS &&
+                debt + gap + gap * tlo / BPS > line
+            ) continue;
 
             // Good to adjust!
             return (true, address(autoline), abi.encodeWithSelector(AutoLineLike.exec.selector, ilk));

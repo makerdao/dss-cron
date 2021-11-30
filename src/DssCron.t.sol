@@ -206,9 +206,11 @@ contract DssCronTest is DSTest {
             if (ilk == ILK) break;
             (,,, uint256 line,) = vat.ilks(ilk);
             (bool success, bytes memory result) = target.call(execPayload);
+            emit log_named_bytes("result", result);
             uint256 newLine = abi.decode(result, (uint256));
             assertTrue(success, "Execution should have succeeded.");
             assertTrue(line != newLine, "Line should have changed.");
+            break;
         }
     }
 
@@ -259,9 +261,13 @@ contract DssCronTest is DSTest {
     }
 
     function verify_no_autoline_job(bytes32 network) internal {
-        (bool canExec, address target,) = autoLineJob.getNextJob(network);
-        assertTrue(!canExec);
+        (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(network);
+        assertTrue(!canExec, "Expecting NOT to be able to execute.");
         assertEq(target, address(0));
+        bytes memory expectedPayload = "No ilks ready";
+        for (uint256 i = 0; i < expectedPayload.length; i++) {
+            assertEq(execPayload[i], expectedPayload[i]);
+        }
     }
 
     function test_autolinejob_raise_line() public {
@@ -353,19 +359,25 @@ contract DssCronTest is DSTest {
         verify_no_autoline_job(NET_A);
     }
 
-    function test_autolinejob_gap_change() public {
+    function test_autolinejob_autoline_param_change() public {
         init_autoline();
 
         // Adjust max line / gap
         autoline.setIlk(ILK, 6_000 * RAD, 5_000 * RAD, 8 hours);
 
-        verify_no_autoline_job(NET_A);
-        mint(ILK, 800 * WAD);
+        // Should be triggerable now as we are 1000 away from
+        // the line which is 80% above the line - gap
         trigger_next_autoline_job(NET_A, ILK);
-        hevm.roll(block.number + 1);
-        hevm.warp(block.timestamp + 8 hours);
-        clear_other_ilks(NET_A);
-        mint(ILK, 200 * WAD);
+    }
+
+    function test_autolinejob_max_line_within_do_nothing_range() public {
+        init_autoline();
+
+        // Set the new gap / maxLine to be slightly less
+        autoline.setIlk(ILK, 999 * RAD, 999 * RAD, 8 hours);
+
+        // This should be within the do-nothing range, but should still
+        // trigger due to the next adjustment being set to maxLine
         trigger_next_autoline_job(NET_A, ILK);
     }
 
