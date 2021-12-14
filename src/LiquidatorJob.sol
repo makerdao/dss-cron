@@ -21,6 +21,24 @@ interface SequencerLike {
     function isMaster(bytes32 network) external view returns (bool);
 }
 
+interface VatLike {
+    function can(address, address) external view returns (uint256);
+    function hope(address) external;
+    function dai(address) external view returns (uint256);
+    function move(address, address, uint256) external;
+}
+
+interface DaiJoinLike {
+    function vat() external view returns (address);
+    function dai() external view returns (address);
+    function join(address, uint256) external;
+}
+
+interface DaiLike {
+    function approve(address, uint256) external returns (bool);
+    function balanceOf(address) external view returns (uint256);
+}
+
 interface IlkRegistryLike {
     function list() external view returns (bytes32[] memory);
     function xlip() external view returns (address);
@@ -47,8 +65,8 @@ interface ClipLike {
     ) external;
 }
 
-interface VatLike {
-    function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
+interface ILiquidatorJob {
+    function execute(address target, bytes calldata data) external;
 }
 
 // Provide backstop liquidations across all supported DEXs
@@ -57,16 +75,37 @@ contract LiquidatorJob is IJob {
     uint256 constant internal BPS = 10 ** 4;
     
     SequencerLike public immutable sequencer;
-    IlkRegistryLike public immutable ilkRegistry;
     VatLike public immutable vat;
-    address public immutable profit;
-    address[] public exchangeCallees;
+    DaiJoinLike public immutable daiJoin;
+    DaiLike public immutable dai;
+    IlkRegistryLike public immutable ilkRegistry;
+    address public immutable profitTarget;
 
-    constructor(address _sequencer, address _ilkRegistry, address _target, address[] memory _exchangeCallees) {
+    address public immutable uniswapV3Callee;
+
+    constructor(address _sequencer, address _daiJoin, address _ilkRegistry, address _profitTarget, address _uniswapV3Callee) {
         sequencer = SequencerLike(_sequencer);
+        daiJoin = DaiJoinLike(_daiJoin);
+        vat = VatLike(daiJoin.vat());
+        dai = DaiLike(daiJoin.dai());
         ilkRegistry = IlkRegistryLike(_ilkRegistry);
-        target = _target;       // use dss-blow 0x0048FC4357DB3c0f45AdEA433a07A20769dDB0CF
-        exchangeCallees = _exchangeCallees;
+        profitTarget = _profitTarget;
+        uniswapV3Callee = _uniswapV3Callee;
+
+        dai.approve(_daiJoin, type(uint256).max);
+    }
+
+    // Warning! This contract can execute arbitrary code. Never give authorizations to anything.
+    function execute(address target, bytes calldata data) public {
+        if (vat.can(address(this), target) != 1) {
+            vat.hope(target);
+        }
+        (bool success,) = target.call(data);
+        require(success, "call failed");
+
+        // Dump all extra DAI into the profit target
+        daiJoin.join(address(this), dai.balanceOf(address(this)));
+        vat.move(address(this), profitTarget, vat.dai(address(this)));
     }
 
     function getNextJob(bytes32 network) external override returns (bool, address, bytes memory) {
@@ -75,27 +114,39 @@ contract LiquidatorJob is IJob {
         bytes32[] memory ilks = ilkRegistry.list();
         for (uint256 i = 0; i < ilks.length; i++) {
             bytes32 ilk = ilks[i];
-            (,, uint256 class,,,,,) = ilkRegistry.info(ilk);
+            (,, uint256 class,, address gem,, address join, address _clip) = ilkRegistry.info(ilk);
             if (class != 1) continue;
-
-            ClipLike clip = ClipLike(ilkRegistry.xlip());
+            ClipLike clip = ClipLike(_clip);
             if (address(clip) == address(0)) continue;
             
             uint256[] memory auctions = clip.list();
             for (uint256 o = 0; o < auctions.length; o++) {
                 uint256 auction = auctions[o];
 
-                for (uint256 p = 0; p < exchangeCallees.length; p++) {
-                    address exchangeCallee = exchangeCallees[p];
-
-                    bytes memory data = abi.encode(
-                        profit,
-                        
+                // Attempt to run this through Uniswap V3 first
+                {
+                    bytes memory data = abi.encodeWithSelector(
+                        ClipLike.take.selector,
+                        auction,
+                        type(uint256).max,
+                        type(uint256).max,
+                        uniswapV3Callee,
+                        abi.encode(
+                            address(this),
+                            join,
+                            0,
+                            abi.encodePacked(gem, uint24(500), dai),
+                            address(0)
+                        )
                     );
 
-                    try clip.take(auction, type(uint256).max, type(uint256).max, exchangeCallee) {
+                    try this.execute(address(clip), data) {
                         // Found an auction!
-                        return (true, address(clip), abi.encodeWithSelector(ClipLike.take.selector, auction, type(uint256).max, type(uint256).max, exchangeCallee));
+                        return (true, address(this), abi.encodeWithSelector(
+                            ILiquidatorJob.execute.selector,
+                            address(clip),
+                            data
+                        ));
                     } catch {
                         // No valid auction -- carry on
                     }

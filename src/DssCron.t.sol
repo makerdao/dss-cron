@@ -18,6 +18,7 @@ pragma solidity 0.8.9;
 import "ds-test/test.sol";
 import {Sequencer} from "./Sequencer.sol";
 import {AutoLineJob} from "./AutoLineJob.sol";
+import {LiquidatorJob} from "./LiquidatorJob.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -48,6 +49,34 @@ interface VatLike {
     function frob(bytes32, address, address, address, int256, int256) external;
     function init(bytes32) external;
     function file(bytes32, bytes32, uint256) external;
+    function hope(address) external;
+}
+
+interface DaiJoinLike {
+}
+
+interface TokenLike {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address) external view returns (uint256);
+    function allowance(address, address) external view returns (uint256);
+    function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function transferFrom(address, address, uint256) external returns (bool);
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
+}
+
+interface JoinLike {
+    function join(address, uint256) external;
+}
+
+interface JugLike {
+    function drip(bytes32) external returns (uint256);
+}
+
+interface DogLike {
+    function bark(bytes32,address,address) external returns (uint256);
 }
 
 // Integration tests against live MCD
@@ -62,10 +91,19 @@ contract DssCronTest is DSTest {
     IlkRegistryLike ilkRegistry;
     AutoLineLike autoline;
     VatLike vat;
+    DaiJoinLike daiJoin;
+    TokenLike dai;
+    TokenLike weth;
+    JoinLike wethJoin;
+    address wethClip;
+    JugLike jug;
+    DogLike dog;
+    address vow;
     Sequencer sequencer;
 
     // Jobs
     AutoLineJob autoLineJob;
+    LiquidatorJob liquidatorJob;
 
     bytes32 constant NET_A = "NTWK-A";
     bytes32 constant NET_B = "NTWK-B";
@@ -82,8 +120,16 @@ contract DssCronTest is DSTest {
         ilkRegistry = IlkRegistryLike(0x5a464C28D19848f44199D003BeF5ecc87d090F87);
         autoline = AutoLineLike(0xC7Bdd1F2B16447dcf3dE045C4a039A60EC2f0ba3);
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
+        daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
+        dai = TokenLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        weth = TokenLike(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        wethJoin = JoinLike(0x2F0b23f53734252Bda2277357e97e1517d6B042A);
+        wethClip = 0xc67963a226eddd77B91aD8c421630A1b0AdFF270;
+        jug = JugLike(0x19c0976f590D67707E62397C87829d896Dc0f1F1);
+        dog = DogLike(0x135954d155898D42C90D2a57824C690e0c7BEf1B);
+        vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         autoLineJob = new AutoLineJob(address(sequencer), address(ilkRegistry), address(autoline), 1000, 2000);     // 10% / 20% bands
-
+        liquidatorJob = new LiquidatorJob(address(sequencer), address(daiJoin), address(ilkRegistry), vow, 0xdB9C76109d102d2A1E645dCa3a7E671EBfd8e11A);
     }
 
     function giveAuthAccess(address _base, address target) internal {
@@ -111,6 +157,38 @@ contract DssCronTest is DSTest {
                 hevm.store(
                     address(base),
                     keccak256(abi.encode(target, uint256(i))),
+                    prevValue
+                );
+            }
+        }
+
+        // We have failed if we reach here
+        assertTrue(false);
+    }
+
+    function giveTokens(TokenLike token, uint256 amount) internal {
+        // Edge case - balance is already set for some reason
+        if (token.balanceOf(address(this)) == amount) return;
+
+        for (uint256 i = 0; i < 200; i++) {
+            // Scan the storage for the balance storage slot
+            bytes32 prevValue = hevm.load(
+                address(token),
+                keccak256(abi.encode(address(this), uint256(i)))
+            );
+            hevm.store(
+                address(token),
+                keccak256(abi.encode(address(this), uint256(i))),
+                bytes32(amount)
+            );
+            if (token.balanceOf(address(this)) == amount) {
+                // Found it
+                return;
+            } else {
+                // Keep going after restoring the original value
+                hevm.store(
+                    address(token),
+                    keccak256(abi.encode(address(this), uint256(i))),
                     prevValue
                 );
             }
@@ -379,6 +457,46 @@ contract DssCronTest is DSTest {
         // This should be within the do-nothing range, but should still
         // trigger due to the next adjustment being set to maxLine
         trigger_next_autoline_job(NET_A, ILK);
+    }
+
+    // --- LiquidatorJob tests ---
+
+    function init_liquidator() internal {
+        // Add a default network
+        sequencer.addNetwork(NET_A);
+
+        // Init perms
+        vat.hope(wethClip);
+
+        // Create an auction on ETH-A
+        uint256 wethAmount = 100 ether;
+        giveTokens(weth, wethAmount);
+        weth.approve(address(wethJoin), type(uint256).max);
+        wethJoin.join(address(this), wethAmount);
+        (,uint256 rate, uint256 spot,,) = vat.ilks("ETH-A");
+        int256 dart = int256(spot * wethAmount / rate);
+        vat.frob("ETH-A", address(this), address(this), address(this), int256(wethAmount), dart);
+        hevm.warp(block.timestamp + 1 days);
+        jug.drip("ETH-A");
+        dog.bark("ETH-A", address(this), address(this));
+    }
+
+    function test_liquidation_eth_a() public {
+        init_liquidator();
+
+        // Liquidation should not be available because the price is too high
+        {
+            (bool canExec, address target, bytes memory execPayload) = liquidatorJob.getNextJob(NET_A);
+            assertTrue(!canExec, "Should not be able execute.");
+        }
+
+        hevm.warp(block.timestamp + 80 minutes);
+        
+        // Liquidation should be available now
+        {
+            (bool canExec, address target, bytes memory execPayload) = liquidatorJob.getNextJob(NET_A);
+            assertTrue(canExec, "Should be able execute.");
+        }
     }
 
 }
