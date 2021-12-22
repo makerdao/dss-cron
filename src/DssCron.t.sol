@@ -50,6 +50,7 @@ interface VatLike {
     function init(bytes32) external;
     function file(bytes32, bytes32, uint256) external;
     function hope(address) external;
+    function dai(address) external view returns (uint256);
 }
 
 interface DaiJoinLike {
@@ -79,6 +80,17 @@ interface DogLike {
     function bark(bytes32,address,address) external returns (uint256);
 }
 
+interface ClipLike {
+    function kicks() external view returns (uint256);
+    function active(uint256) external view returns (uint256);
+    function sales(uint256) external view returns (uint256,uint256,uint256,address,uint96,uint256);
+    function kick(uint256,uint256,address,address) external returns (uint256);
+    function redo(uint256,address) external;
+    function take(uint256,uint256,uint256,address,bytes calldata) external;
+    function count() external view returns (uint256);
+    function list() external view returns (uint256[] memory);
+}
+
 // Integration tests against live MCD
 contract DssCronTest is DSTest {
 
@@ -95,7 +107,7 @@ contract DssCronTest is DSTest {
     TokenLike dai;
     TokenLike weth;
     JoinLike wethJoin;
-    address wethClip;
+    ClipLike wethClip;
     JugLike jug;
     DogLike dog;
     address vow;
@@ -124,7 +136,7 @@ contract DssCronTest is DSTest {
         dai = TokenLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         weth = TokenLike(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         wethJoin = JoinLike(0x2F0b23f53734252Bda2277357e97e1517d6B042A);
-        wethClip = 0xc67963a226eddd77B91aD8c421630A1b0AdFF270;
+        wethClip = ClipLike(0xc67963a226eddd77B91aD8c421630A1b0AdFF270);
         jug = JugLike(0x19c0976f590D67707E62397C87829d896Dc0f1F1);
         dog = DogLike(0x135954d155898D42C90D2a57824C690e0c7BEf1B);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
@@ -284,11 +296,9 @@ contract DssCronTest is DSTest {
             if (ilk == ILK) break;
             (,,, uint256 line,) = vat.ilks(ilk);
             (bool success, bytes memory result) = target.call(execPayload);
-            emit log_named_bytes("result", result);
             uint256 newLine = abi.decode(result, (uint256));
             assertTrue(success, "Execution should have succeeded.");
             assertTrue(line != newLine, "Line should have changed.");
-            break;
         }
     }
 
@@ -466,7 +476,9 @@ contract DssCronTest is DSTest {
         sequencer.addNetwork(NET_A);
 
         // Init perms
-        vat.hope(wethClip);
+        vat.hope(address(wethClip));
+
+        // TODO clear out any existing auctions
 
         // Create an auction on ETH-A
         uint256 wethAmount = 100 ether;
@@ -478,11 +490,17 @@ contract DssCronTest is DSTest {
         vat.frob("ETH-A", address(this), address(this), address(this), int256(wethAmount), dart);
         hevm.warp(block.timestamp + 1 days);
         jug.drip("ETH-A");
-        dog.bark("ETH-A", address(this), address(this));
     }
 
     function test_liquidation_eth_a() public {
         init_liquidator();
+
+        // Setup auction
+        uint256 auctionId = wethClip.kicks() + 1;
+        dog.bark("ETH-A", address(this), address(this));
+        assertEq(wethClip.kicks(), auctionId);
+        (,uint256 tab,,,,) = wethClip.sales(auctionId);
+        assertTrue(tab != 0, "auction didn't kick off");
 
         // Liquidation should not be available because the price is too high
         {
@@ -490,13 +508,25 @@ contract DssCronTest is DSTest {
             assertTrue(!canExec, "Should not be able execute.");
         }
 
+        // This will put it well below market price
         hevm.warp(block.timestamp + 80 minutes);
         
-        // Liquidation should be available now
+        // Liquidation should be available now -- trigger it
+        uint256 vowDai = vat.dai(vow);
         {
             (bool canExec, address target, bytes memory execPayload) = liquidatorJob.getNextJob(NET_A);
             assertTrue(canExec, "Should be able execute.");
+            // Normally this should be called, but the liquidator works by attempting execution
+            //(bool success,) = target.call(execPayload);
+            //assertTrue(success);
         }
+
+        // Auction should be cleared
+        (,tab,,,,) = wethClip.sales(auctionId);
+        assertEq(tab, 0);
+
+        // Profit should go to vow
+        assertGt(vat.dai(vow), vowDai);
     }
 
 }
