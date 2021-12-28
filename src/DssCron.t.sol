@@ -111,11 +111,13 @@ contract DssCronTest is DSTest {
     JugLike jug;
     DogLike dog;
     address vow;
+    address uniswapV3Callee;
     Sequencer sequencer;
 
     // Jobs
     AutoLineJob autoLineJob;
     LiquidatorJob liquidatorJob;
+    LiquidatorJob liquidatorJob500;
 
     bytes32 constant NET_A = "NTWK-A";
     bytes32 constant NET_B = "NTWK-B";
@@ -140,8 +142,10 @@ contract DssCronTest is DSTest {
         jug = JugLike(0x19c0976f590D67707E62397C87829d896Dc0f1F1);
         dog = DogLike(0x135954d155898D42C90D2a57824C690e0c7BEf1B);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
-        autoLineJob = new AutoLineJob(address(sequencer), address(ilkRegistry), address(autoline), 1000, 2000);     // 10% / 20% bands
-        liquidatorJob = new LiquidatorJob(address(sequencer), address(daiJoin), address(ilkRegistry), vow, 0xdB9C76109d102d2A1E645dCa3a7E671EBfd8e11A);
+        uniswapV3Callee = 0xdB9C76109d102d2A1E645dCa3a7E671EBfd8e11A;
+        autoLineJob = new AutoLineJob(address(sequencer), address(ilkRegistry), address(autoline), 1000, 2000);                         // 10% / 20% bands
+        liquidatorJob = new LiquidatorJob(address(sequencer), address(daiJoin), address(ilkRegistry), vow, uniswapV3Callee, 0);         // 0% profit expectation
+        liquidatorJob500 = new LiquidatorJob(address(sequencer), address(daiJoin), address(ilkRegistry), vow, uniswapV3Callee, 500);    // 5% profit expectation
     }
 
     function giveAuthAccess(address _base, address target) internal {
@@ -475,9 +479,6 @@ contract DssCronTest is DSTest {
         // Add a default network
         sequencer.addNetwork(NET_A);
 
-        // Init perms
-        vat.hope(address(wethClip));
-
         // TODO clear out any existing auctions
 
         // Create an auction on ETH-A
@@ -492,6 +493,25 @@ contract DssCronTest is DSTest {
         jug.drip("ETH-A");
     }
 
+    function trigger_next_liquidation_job(bytes32 network, LiquidatorJob liquidator) internal {
+        (bool canExec, address target, bytes memory execPayload) = liquidator.getNextJob(network);
+        assertTrue(canExec, "Expecting to be able to execute.");
+        assertEq(target, address(liquidator));
+        // No need to actually execute as the detection of a successful job will execute
+        //(bool success,) = target.call(execPayload);
+        //assertTrue(success, "Execution should have succeeded.");
+    }
+
+    function verify_no_liquidation_job(bytes32 network, LiquidatorJob liquidator) internal {
+        (bool canExec, address target, bytes memory execPayload) = liquidator.getNextJob(network);
+        assertTrue(!canExec, "Expecting NOT to be able to execute.");
+        assertEq(target, address(0));
+        bytes memory expectedPayload = "No auctions";
+        for (uint256 i = 0; i < expectedPayload.length; i++) {
+            assertEq(execPayload[i], expectedPayload[i]);
+        }
+    }
+
     function test_liquidation_eth_a() public {
         init_liquidator();
 
@@ -503,23 +523,46 @@ contract DssCronTest is DSTest {
         assertTrue(tab != 0, "auction didn't kick off");
 
         // Liquidation should not be available because the price is too high
-        {
-            (bool canExec, address target, bytes memory execPayload) = liquidatorJob.getNextJob(NET_A);
-            assertTrue(!canExec, "Should not be able execute.");
-        }
+        verify_no_liquidation_job(NET_A, liquidatorJob500);
+        verify_no_liquidation_job(NET_A, liquidatorJob);
 
-        // This will put it well below market price
-        hevm.warp(block.timestamp + 80 minutes);
-        
-        // Liquidation should be available now -- trigger it
+        // This will put it just below market price -- should trigger with only the no profit one
+        hevm.warp(block.timestamp + 30 minutes);
+
+        verify_no_liquidation_job(NET_A, liquidatorJob500);
         uint256 vowDai = vat.dai(vow);
-        {
-            (bool canExec, address target, bytes memory execPayload) = liquidatorJob.getNextJob(NET_A);
-            assertTrue(canExec, "Should be able execute.");
-            // Normally this should be called, but the liquidator works by attempting execution
-            //(bool success,) = target.call(execPayload);
-            //assertTrue(success);
-        }
+        trigger_next_liquidation_job(NET_A, liquidatorJob);
+
+        // Auction should be cleared
+        (,tab,,,,) = wethClip.sales(auctionId);
+        assertEq(tab, 0);
+
+        // Profit should go to vow
+        assertGt(vat.dai(vow), vowDai);
+    }
+
+    function test_liquidation_eth_a_profit() public {
+        init_liquidator();
+
+        // Setup auction
+        uint256 auctionId = wethClip.kicks() + 1;
+        dog.bark("ETH-A", address(this), address(this));
+        assertEq(wethClip.kicks(), auctionId);
+        (,uint256 tab,,,,) = wethClip.sales(auctionId);
+        assertTrue(tab != 0, "auction didn't kick off");
+
+        // Liquidation should not be available because the price is too high
+        verify_no_liquidation_job(NET_A, liquidatorJob500);
+
+        // This will put it just below market price -- should still not trigger
+        hevm.warp(block.timestamp + 30 minutes);
+        verify_no_liquidation_job(NET_A, liquidatorJob500);
+
+        // A little bit further
+        hevm.warp(block.timestamp + 8 minutes);
+
+        uint256 vowDai = vat.dai(vow);
+        trigger_next_liquidation_job(NET_A, liquidatorJob500);
 
         // Auction should be cleared
         (,tab,,,,) = wethClip.sales(auctionId);

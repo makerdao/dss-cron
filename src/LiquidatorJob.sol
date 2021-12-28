@@ -63,6 +63,7 @@ interface ClipLike {
         address who,          // Receiver of collateral and external call address
         bytes calldata data   // Data to pass in external call; if length 0, no call is done
     ) external;
+    function sales(uint256) external view returns (uint256,uint256,uint256,address,uint96,uint256);
 }
 
 interface ILiquidatorJob {
@@ -73,6 +74,7 @@ interface ILiquidatorJob {
 contract LiquidatorJob is IJob {
 
     uint256 constant internal BPS = 10 ** 4;
+    uint256 constant internal RAY = 10 ** 27;
     
     SequencerLike public immutable sequencer;
     VatLike public immutable vat;
@@ -82,8 +84,9 @@ contract LiquidatorJob is IJob {
     address public immutable profitTarget;
 
     address public immutable uniswapV3Callee;
+    uint256 public immutable minProfitBPS;          // Profit as % of debt owed
 
-    constructor(address _sequencer, address _daiJoin, address _ilkRegistry, address _profitTarget, address _uniswapV3Callee) {
+    constructor(address _sequencer, address _daiJoin, address _ilkRegistry, address _profitTarget, address _uniswapV3Callee, uint256 _minProfitBPS) {
         sequencer = SequencerLike(_sequencer);
         daiJoin = DaiJoinLike(_daiJoin);
         vat = VatLike(daiJoin.vat());
@@ -91,6 +94,7 @@ contract LiquidatorJob is IJob {
         ilkRegistry = IlkRegistryLike(_ilkRegistry);
         profitTarget = _profitTarget;
         uniswapV3Callee = _uniswapV3Callee;
+        minProfitBPS = _minProfitBPS;
 
         dai.approve(_daiJoin, type(uint256).max);
     }
@@ -114,37 +118,43 @@ contract LiquidatorJob is IJob {
         bytes32[] memory ilks = ilkRegistry.list();
         for (uint256 i = 0; i < ilks.length; i++) {
             bytes32 ilk = ilks[i];
-            (,, uint256 class,, address gem,, address join, address _clip) = ilkRegistry.info(ilk);
+            (,, uint256 class,, address gem,, address join, address clip) = ilkRegistry.info(ilk);
             if (class != 1) continue;
-            ClipLike clip = ClipLike(_clip);
-            if (address(clip) == address(0)) continue;
+            if (clip == address(0)) continue;
             
-            uint256[] memory auctions = clip.list();
+            uint256[] memory auctions = ClipLike(clip).list();
             for (uint256 o = 0; o < auctions.length; o++) {
                 uint256 auction = auctions[o];
 
-                // Attempt to run this through Uniswap V3 first
-                {
-                    bytes memory data = abi.encodeWithSelector(
-                        ClipLike.take.selector,
-                        auction,
-                        type(uint256).max,
-                        type(uint256).max,
-                        uniswapV3Callee,
-                        abi.encode(
+                // Attempt to run this through Uniswap V3 liquidator
+                uint24[2] memory fees = [uint24(500), uint24(3000)];
+                for (uint256 p = 0; p < fees.length; p++) {
+                    bytes memory data;
+                    {
+                        // Stack too deep
+                        (, uint256 tab,,,,) = ClipLike(clip).sales(auction);
+                        bytes memory exchangeCalleeData = abi.encode(
                             address(this),
                             join,
-                            0,
-                            abi.encodePacked(gem, uint24(500), dai),
+                            tab * minProfitBPS / BPS / RAY,
+                            abi.encodePacked(gem, fees[p], dai),
                             address(0)
-                        )
-                    );
+                        );
+                        data = abi.encodeWithSelector(
+                            ClipLike.take.selector,
+                            auction,
+                            type(uint256).max,
+                            type(uint256).max,
+                            uniswapV3Callee,
+                            exchangeCalleeData
+                        );
+                    }
 
-                    try this.execute(address(clip), data) {
+                    try this.execute(clip, data) {
                         // Found an auction!
                         return (true, address(this), abi.encodeWithSelector(
                             ILiquidatorJob.execute.selector,
-                            address(clip),
+                            clip,
                             data
                         ));
                     } catch {
