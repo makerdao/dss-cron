@@ -3,11 +3,8 @@ set -e
 
 [[ "$ETH_RPC_URL" && "$(seth chain)" == "ethlive" ]] || { echo "Please set a mainnet ETH_RPC_URL"; exit 1; }
 
-export DAPP_BUILD_OPTIMIZE=1
-export DAPP_BUILD_OPTIMIZE_RUNS=200
-
 if [[ -z "$1" ]]; then
-  dapp --use solc:0.8.9 test --rpc-url="$ETH_RPC_URL" -v
+  forge test --rpc-url="$ETH_RPC_URL" --optimize --verbosity 1 --force
 else
-  dapp --use solc:0.8.9 test --rpc-url="$ETH_RPC_URL" --match "$1" -vv
+  forge test --rpc-url="$ETH_RPC_URL" --optimize --match "$1" --verbosity 3 --force
 fi
