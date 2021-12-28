@@ -494,7 +494,7 @@ contract DssCronTest is DSTest {
     }
 
     function trigger_next_liquidation_job(bytes32 network, LiquidatorJob liquidator) internal {
-        (bool canExec, address target, bytes memory execPayload) = liquidator.getNextJob(network);
+        (bool canExec, address target,) = liquidator.getNextJob(network);
         assertTrue(canExec, "Expecting to be able to execute.");
         assertEq(target, address(liquidator));
         // No need to actually execute as the detection of a successful job will execute
