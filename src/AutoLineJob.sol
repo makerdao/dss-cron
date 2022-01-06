@@ -104,7 +104,7 @@ contract AutoLineJob is IJob {
             ) continue;
 
             // Good to adjust!
-            return (true, abi.encodeWithSelector(AutoLineLike.exec.selector, ilk));
+            return (true, abi.encode(ilk));
         }
 
         return (false, bytes("No ilks ready"));
