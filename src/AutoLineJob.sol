@@ -56,8 +56,26 @@ contract AutoLineJob is IJob {
         tlo = _tlo;
     }
 
-    function getNextJob(bytes32 network) external view override returns (bool, address, bytes memory) {
-        if (!sequencer.isMaster(network)) return (false, address(0), bytes("Network is not master"));
+    function execute(bytes32 network, bytes calldata execPayload) external override {
+        require(sequencer.isMaster(network));
+        
+        bytes32 ilk = abi.decode(execPayload, (bytes32));
+
+        (,,, uint256 line,) = vat.ilks(ilk);
+        uint256 newLine = autoline.exec(ilk);
+
+        // Execution is not enough
+        // We need to be over the threshold amounts
+        (uint256 maxLine, uint256 gap,,,) = autoline.ilks(ilk);
+        if (newLine > line) {
+            require(newLine == maxLine || newLine >= line + gap * thi / BPS);
+        } else {
+            require(newLine + gap * tlo / BPS <= line);
+        }
+    }
+
+    function getNextJob(bytes32 network) external view override returns (bool, bytes memory) {
+        if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
         
         bytes32[] memory ilks = ilkRegistry.list();
         for (uint256 i = 0; i < ilks.length; i++) {
@@ -86,10 +104,10 @@ contract AutoLineJob is IJob {
             ) continue;
 
             // Good to adjust!
-            return (true, address(autoline), abi.encodeWithSelector(AutoLineLike.exec.selector, ilk));
+            return (true, abi.encodeWithSelector(AutoLineLike.exec.selector, ilk));
         }
 
-        return (false, address(0), bytes("No ilks ready"));
+        return (false, bytes("No ilks ready"));
     }
 
 }
