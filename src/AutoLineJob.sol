@@ -57,7 +57,7 @@ contract AutoLineJob is IJob {
     }
 
     function execute(bytes32 network, bytes calldata execPayload) external override {
-        require(sequencer.isMaster(network));
+        require(sequencer.isMaster(network), "not-master");
         
         bytes32 ilk = abi.decode(execPayload, (bytes32));
 
@@ -68,9 +68,9 @@ contract AutoLineJob is IJob {
         // We need to be over the threshold amounts
         (uint256 maxLine, uint256 gap,,,) = autoline.ilks(ilk);
         if (newLine > line) {
-            require(newLine == maxLine || newLine >= line + gap * thi / BPS);
+            require(newLine == maxLine || newLine >= line + gap * thi / BPS, "threshold-upper");
         } else {
-            require(newLine + gap * tlo / BPS <= line);
+            require(newLine + gap * tlo / BPS <= line, "threshold-lower");
         }
     }
 
