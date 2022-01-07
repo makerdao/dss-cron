@@ -219,7 +219,7 @@ contract DssCronTest is DSTest {
 
         assertEq(sequencer.activeNetworks(0), NET_A);
         assertTrue(sequencer.networks(NET_A));
-        assertEq(sequencer.count(), 1);
+        assertEq(sequencer.numNetworks(), 1);
     }
 
     function testFail_sequencer_add_dupe_network() public {
@@ -232,7 +232,7 @@ contract DssCronTest is DSTest {
         sequencer.removeNetwork(0);
 
         assertTrue(!sequencer.networks(NET_A));
-        assertEq(sequencer.count(), 0);
+        assertEq(sequencer.numNetworks(), 0);
     }
 
     function test_sequencer_add_remove_networks() public {
@@ -240,7 +240,7 @@ contract DssCronTest is DSTest {
         sequencer.addNetwork(NET_B);
         sequencer.addNetwork(NET_C);
 
-        assertEq(sequencer.count(), 3);
+        assertEq(sequencer.numNetworks(), 3);
         assertEq(sequencer.activeNetworks(0), NET_A);
         assertEq(sequencer.activeNetworks(1), NET_B);
         assertEq(sequencer.activeNetworks(2), NET_C);
@@ -249,7 +249,7 @@ contract DssCronTest is DSTest {
         sequencer.removeNetwork(0);
 
 
-        assertEq(sequencer.count(), 2);
+        assertEq(sequencer.numNetworks(), 2);
         assertEq(sequencer.activeNetworks(0), NET_C);
         assertEq(sequencer.activeNetworks(1), NET_B);
     }
@@ -262,9 +262,9 @@ contract DssCronTest is DSTest {
         bytes32[3] memory networks = [NET_A, NET_B, NET_C];
 
         for (uint256 i = 0; i < sequencer.window() * 10; i++) {
-            assertTrue(sequencer.isMaster(networks[0]) == ((block.number / sequencer.window()) % sequencer.count() == 0));
-            assertTrue(sequencer.isMaster(networks[1]) == ((block.number / sequencer.window()) % sequencer.count() == 1));
-            assertTrue(sequencer.isMaster(networks[2]) == ((block.number / sequencer.window()) % sequencer.count() == 2));
+            assertTrue(sequencer.isMaster(networks[0]) == ((block.number / sequencer.window()) % sequencer.numNetworks() == 0));
+            assertTrue(sequencer.isMaster(networks[1]) == ((block.number / sequencer.window()) % sequencer.numNetworks() == 1));
+            assertTrue(sequencer.isMaster(networks[2]) == ((block.number / sequencer.window()) % sequencer.numNetworks() == 2));
             assertEq(
                 (sequencer.isMaster(networks[0]) ? 1 : 0) +
                 (sequencer.isMaster(networks[1]) ? 1 : 0) +
