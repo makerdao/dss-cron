@@ -294,14 +294,13 @@ contract DssCronTest is DSTest {
 
     function clear_other_ilks(bytes32 network) internal {
         while(true) {
-            (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(network);
-            if (!canExec) break;
-            bytes32 ilk = abi.decode(execPayload, (bytes32));
+            (bool canWork, bytes memory args) = autoLineJob.workable(network);
+            if (!canWork) break;
+            bytes32 ilk = abi.decode(args, (bytes32));
             if (ilk == ILK) break;
             (,,, uint256 line,) = vat.ilks(ilk);
-            (bool success, bytes memory result) = target.call(execPayload);
-            uint256 newLine = abi.decode(result, (uint256));
-            assertTrue(success, "Execution should have succeeded.");
+            autoLineJob.work(network, args);
+            (,,, uint256 newLine,) = vat.ilks(ilk);
             assertTrue(line != newLine, "Line should have changed.");
         }
     }
@@ -338,27 +337,24 @@ contract DssCronTest is DSTest {
     }
 
     function trigger_next_autoline_job(bytes32 network, bytes32 ilk) internal {
-        (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(network);
-        assertTrue(canExec, "Expecting to be able to execute.");
-        assertEq(target, address(autoline));
-        bytes memory expectedPayload = abi.encodeWithSelector(AutoLineLike.exec.selector, ilk);
-        for (uint256 i = 0; i < expectedPayload.length; i++) {
-            assertEq(execPayload[i], expectedPayload[i]);
+        (bool canWork, bytes memory args) = autoLineJob.workable(network);
+        assertTrue(canWork, "Expecting to be able to execute.");
+        bytes memory expectedArgs = abi.encode(ilk);
+        for (uint256 i = 0; i < expectedArgs.length; i++) {
+            assertEq(args[i], expectedArgs[i]);
         }
         (,,, uint256 line,) = vat.ilks(ilk);
-        (bool success, bytes memory result) = target.call(execPayload);
-        uint256 newLine = abi.decode(result, (uint256));
-        assertTrue(success, "Execution should have succeeded.");
+        autoLineJob.work(network, args);
+        (,,, uint256 newLine,) = vat.ilks(ilk);
         assertTrue(line != newLine, "Line should have changed.");
     }
 
     function verify_no_autoline_job(bytes32 network) internal {
-        (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(network);
-        assertTrue(!canExec, "Expecting NOT to be able to execute.");
-        assertEq(target, address(0));
-        bytes memory expectedPayload = "No ilks ready";
-        for (uint256 i = 0; i < expectedPayload.length; i++) {
-            assertEq(execPayload[i], expectedPayload[i]);
+        (bool canWork, bytes memory args) = autoLineJob.workable(network);
+        assertTrue(!canWork, "Expecting NOT to be able to execute.");
+        bytes memory expectedArgs = "No ilks ready";
+        for (uint256 i = 0; i < expectedArgs.length; i++) {
+            assertEq(args[i], expectedArgs[i]);
         }
     }
 
@@ -494,21 +490,19 @@ contract DssCronTest is DSTest {
     }
 
     function trigger_next_liquidation_job(bytes32 network, LiquidatorJob liquidator) internal {
-        (bool canExec, address target, bytes memory execPayload) = liquidator.getNextJob(network);
-        assertTrue(canExec, "Expecting to be able to execute.");
-        assertEq(target, address(liquidator));
+        (bool canWork, bytes memory args) = liquidator.workable(network);
+        assertTrue(canWork, "Expecting to be able to execute.");
         // No need to actually execute as the detection of a successful job will execute
-        //(bool success,) = target.call(execPayload);
+        //(bool success,) = target.call(args);
         //assertTrue(success, "Execution should have succeeded.");
     }
 
     function verify_no_liquidation_job(bytes32 network, LiquidatorJob liquidator) internal {
-        (bool canExec, address target, bytes memory execPayload) = liquidator.getNextJob(network);
-        assertTrue(!canExec, "Expecting NOT to be able to execute.");
-        assertEq(target, address(0));
-        bytes memory expectedPayload = "No auctions";
-        for (uint256 i = 0; i < expectedPayload.length; i++) {
-            assertEq(execPayload[i], expectedPayload[i]);
+        (bool canWork, bytes memory args) = liquidator.workable(network);
+        assertTrue(!canWork, "Expecting NOT to be able to execute.");
+        bytes memory expectedArgs = "No auctions";
+        for (uint256 i = 0; i < expectedArgs.length; i++) {
+            assertEq(args[i], expectedArgs[i]);
         }
     }
 
@@ -527,7 +521,7 @@ contract DssCronTest is DSTest {
         verify_no_liquidation_job(NET_A, liquidatorJob);
 
         // This will put it just below market price -- should trigger with only the no profit one
-        hevm.warp(block.timestamp + 30 minutes);
+        hevm.warp(block.timestamp + 31 minutes);
 
         verify_no_liquidation_job(NET_A, liquidatorJob500);
         uint256 vowDai = vat.dai(vow);
@@ -555,7 +549,7 @@ contract DssCronTest is DSTest {
         verify_no_liquidation_job(NET_A, liquidatorJob500);
 
         // This will put it just below market price -- should still not trigger
-        hevm.warp(block.timestamp + 30 minutes);
+        hevm.warp(block.timestamp + 31 minutes);
         verify_no_liquidation_job(NET_A, liquidatorJob500);
 
         // A little bit further

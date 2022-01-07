@@ -16,5 +16,6 @@
 pragma solidity ^0.8.9;
 
 interface IJob {
-    function getNextJob(bytes32 operator) external returns (bool canExec, address target, bytes memory execPayload);
+    function work(bytes32 network, bytes calldata args) external;
+    function workable(bytes32 network) external returns (bool canWork, bytes memory args);
 }
