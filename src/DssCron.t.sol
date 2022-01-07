@@ -521,7 +521,7 @@ contract DssCronTest is DSTest {
         verify_no_liquidation_job(NET_A, liquidatorJob);
 
         // This will put it just below market price -- should trigger with only the no profit one
-        hevm.warp(block.timestamp + 30 minutes);
+        hevm.warp(block.timestamp + 31 minutes);
 
         verify_no_liquidation_job(NET_A, liquidatorJob500);
         uint256 vowDai = vat.dai(vow);
@@ -549,7 +549,7 @@ contract DssCronTest is DSTest {
         verify_no_liquidation_job(NET_A, liquidatorJob500);
 
         // This will put it just below market price -- should still not trigger
-        hevm.warp(block.timestamp + 30 minutes);
+        hevm.warp(block.timestamp + 31 minutes);
         verify_no_liquidation_job(NET_A, liquidatorJob500);
 
         // A little bit further

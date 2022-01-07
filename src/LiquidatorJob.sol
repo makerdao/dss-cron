@@ -130,21 +130,19 @@ contract LiquidatorJob is IJob {
         
         bytes32[] memory ilks = ilkRegistry.list();
         for (uint256 i = 0; i < ilks.length; i++) {
-            bytes32 ilk = ilks[i];
-            (,,,, address gem,, address join, address clip) = ilkRegistry.info(ilk);
+            (,, uint256 class,, address gem,, address join, address clip) = ilkRegistry.info(ilks[i]);
+            if (class != 1) continue;
             if (clip == address(0)) continue;
             
             uint256[] memory auctions = ClipLike(clip).list();
             for (uint256 o = 0; o < auctions.length; o++) {
-                uint256 auction = auctions[o];
-
                 // Attempt to run this through Uniswap V3 liquidator
                 uint24[2] memory fees = [uint24(500), uint24(3000)];
                 for (uint256 p = 0; p < fees.length; p++) {
                     bytes memory args;
                     {
                         // Stack too deep
-                        (, uint256 tab,,,,) = ClipLike(clip).sales(auction);
+                        (, uint256 tab,,,,) = ClipLike(clip).sales(auctions[o]);
                         bytes memory calleePayload = abi.encode(
                             address(this),
                             join,
@@ -154,7 +152,7 @@ contract LiquidatorJob is IJob {
                         );
                         args = abi.encode(
                             clip,
-                            auction,
+                            auctions[o],
                             calleePayload
                         );
                     }
