@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity ^0.8.9;
+pragma solidity 0.8.9;
 
 import "./IJob.sol";
 
@@ -47,6 +47,10 @@ contract AutoLineJob is IJob {
     uint256 public immutable thi;                       // % above the previously exec'ed debt level
     uint256 public immutable tlo;                       // % below the previously exec'ed debt level
 
+    // --- Errors ---
+    error NotMaster(bytes32 network);
+    error OutsideThreshold(bytes32 network, bytes32 ilk);
+
     constructor(address _sequencer, address _ilkRegistry, address _autoline, uint256 _thi, uint256 _tlo) {
         sequencer = SequencerLike(_sequencer);
         ilkRegistry = IlkRegistryLike(_ilkRegistry);
@@ -56,25 +60,25 @@ contract AutoLineJob is IJob {
         tlo = _tlo;
     }
 
-    function execute(bytes32 network, bytes calldata execPayload) external override {
-        require(sequencer.isMaster(network), "not-master");
+    function work(bytes32 network, bytes calldata args) external override {
+        if (!sequencer.isMaster(network)) revert NotMaster(network);
         
-        bytes32 ilk = abi.decode(execPayload, (bytes32));
+        bytes32 ilk = abi.decode(args, (bytes32));
 
         (,,, uint256 line,) = vat.ilks(ilk);
-        uint256 newLine = autoline.exec(ilk);
+        uint256 nextLine = autoline.exec(ilk);
 
         // Execution is not enough
         // We need to be over the threshold amounts
         (uint256 maxLine, uint256 gap,,,) = autoline.ilks(ilk);
-        if (newLine > line) {
-            require(newLine == maxLine || newLine >= line + gap * thi / BPS, "threshold-upper");
-        } else {
-            require(newLine + gap * tlo / BPS <= line, "threshold-lower");
-        }
+        if (
+            nextLine != maxLine &&
+            nextLine < line + gap * thi / BPS &&
+            nextLine + gap * tlo / BPS > line
+        ) revert OutsideThreshold(network, ilk);
     }
 
-    function getNextJob(bytes32 network) external view override returns (bool, bytes memory) {
+    function workable(bytes32 network) external view override returns (bool, bytes memory) {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
         
         bytes32[] memory ilks = ilkRegistry.list();
@@ -99,8 +103,8 @@ contract AutoLineJob is IJob {
             // Exception if we are at the maxLine
             if (
                 nextLine != maxLine &&
-                debt + gap < line + gap * thi / BPS &&
-                debt + gap + gap * tlo / BPS > line
+                nextLine < line + gap * thi / BPS &&
+                nextLine + gap * tlo / BPS > line
             ) continue;
 
             // Good to adjust!
