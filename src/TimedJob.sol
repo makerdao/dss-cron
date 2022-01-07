@@ -13,16 +13,12 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity ^0.8.9;
+pragma solidity 0.8.9;
 
 import "./IJob.sol";
 
 interface SequencerLike {
     function isMaster(bytes32 network) external view returns (bool);
-}
-
-interface ITimedJob {
-    function execute() external;
 }
 
 // Execute some job on a timer
@@ -32,21 +28,28 @@ abstract contract TimedJob is IJob {
     uint256 public immutable maxDuration;       // The max duration between ticks
     uint256 public last;
 
+    // --- Errors ---
+    error NotMaster(bytes32 network);
+    error TimerNotElapsed();
+
     constructor(address _sequencer, uint256 _maxDuration) {
         sequencer = SequencerLike(_sequencer);
         maxDuration = _maxDuration;
     }
 
-    function execute() external {
+    function work(bytes32 network, bytes calldata) external {
+        if (!sequencer.isMaster(network)) revert NotMaster(network);
+        if (block.timestamp <= last + maxDuration) revert TimerNotElapsed();
+        
         last = block.timestamp;
         update();
     }
 
-    function getNextJob(bytes32 network) external view override returns (bool, address, bytes memory) {
-        if (!sequencer.isMaster(network)) return (false, address(0), bytes("Network is not master"));
-        if (block.timestamp <= last + maxDuration) return (false, address(0), bytes("Timer hasn't elapsed"));
+    function workable(bytes32 network) external view override returns (bool, bytes memory) {
+        if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
+        if (block.timestamp <= last + maxDuration) return (false, bytes("Timer hasn't elapsed"));
         
-        return (true, address(this), abi.encodeWithSelector(ITimedJob.execute.selector));
+        return (true, "");
     }
 
     function update() virtual internal;

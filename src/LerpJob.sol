@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity ^0.8.9;
+pragma solidity 0.8.9;
 
 import "./TimedJob.sol";
 
@@ -26,11 +26,8 @@ contract LerpJob is TimedJob {
     
     LerpFactoryLike public immutable lerpFactory;
 
-    uint256 public immutable duration;       // The duration between ticks
-
     constructor(address _sequencer, address _lerpFactory, uint256 _duration) TimedJob(_sequencer, _duration) {
         lerpFactory = LerpFactoryLike(_lerpFactory);
-        duration = _duration;
     }
 
     function update() internal override {
