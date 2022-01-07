@@ -131,8 +131,7 @@ contract LiquidatorJob is IJob {
         bytes32[] memory ilks = ilkRegistry.list();
         for (uint256 i = 0; i < ilks.length; i++) {
             bytes32 ilk = ilks[i];
-            (,, uint256 class,, address gem,, address join, address clip) = ilkRegistry.info(ilk);
-            if (class != 1) continue;
+            (,,,, address gem,, address join, address clip) = ilkRegistry.info(ilk);
             if (clip == address(0)) continue;
             
             uint256[] memory auctions = ClipLike(clip).list();
