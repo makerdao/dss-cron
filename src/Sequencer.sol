@@ -116,7 +116,7 @@ contract Sequencer {
         emit AddJob(job);
     }
     function removeJob(uint256 index) external auth {
-        if (index >= activeNetworks.length) revert IndexTooHigh(index);
+        if (index >= activeJobs.length) revert IndexTooHigh(index);
 
         address job = activeJobs[index];
         if (index != activeJobs.length - 1) {

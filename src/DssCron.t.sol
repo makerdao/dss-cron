@@ -25,6 +25,7 @@ interface Hevm {
     function roll(uint256) external;
     function store(address,bytes32,bytes32) external;
     function load(address,bytes32) external view returns (bytes32);
+    function expectRevert(bytes calldata) external;
 }
 
 interface AuthLike {
@@ -222,8 +223,9 @@ contract DssCronTest is DSTest {
         assertEq(sequencer.numNetworks(), 1);
     }
 
-    function testFail_sequencer_add_dupe_network() public {
+    function test_sequencer_add_dupe_network() public {
         sequencer.addNetwork(NET_A);
+        hevm.expectRevert(abi.encodeWithSignature("NetworkExists(bytes32)", NET_A));
         sequencer.addNetwork(NET_A);
     }
 
@@ -300,8 +302,9 @@ contract DssCronTest is DSTest {
         assertEq(sequencer.numJobs(), 1);
     }
 
-    function testFail_sequencer_add_dupe_job() public {
+    function test_sequencer_add_dupe_job() public {
         sequencer.addJob(address(autoLineJob));
+        hevm.expectRevert(abi.encodeWithSignature("JobExists(address)", autoLineJob));
         sequencer.addJob(address(autoLineJob));
     }
 
