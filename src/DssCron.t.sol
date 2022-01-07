@@ -25,6 +25,7 @@ interface Hevm {
     function roll(uint256) external;
     function store(address,bytes32,bytes32) external;
     function load(address,bytes32) external view returns (bytes32);
+    function expectRevert(bytes calldata) external;
 }
 
 interface AuthLike {
@@ -219,11 +220,12 @@ contract DssCronTest is DSTest {
 
         assertEq(sequencer.activeNetworks(0), NET_A);
         assertTrue(sequencer.networks(NET_A));
-        assertEq(sequencer.count(), 1);
+        assertEq(sequencer.numNetworks(), 1);
     }
 
-    function testFail_sequencer_add_dupe_network() public {
+    function test_sequencer_add_dupe_network() public {
         sequencer.addNetwork(NET_A);
+        hevm.expectRevert(abi.encodeWithSignature("NetworkExists(bytes32)", NET_A));
         sequencer.addNetwork(NET_A);
     }
 
@@ -232,7 +234,7 @@ contract DssCronTest is DSTest {
         sequencer.removeNetwork(0);
 
         assertTrue(!sequencer.networks(NET_A));
-        assertEq(sequencer.count(), 0);
+        assertEq(sequencer.numNetworks(), 0);
     }
 
     function test_sequencer_add_remove_networks() public {
@@ -240,7 +242,7 @@ contract DssCronTest is DSTest {
         sequencer.addNetwork(NET_B);
         sequencer.addNetwork(NET_C);
 
-        assertEq(sequencer.count(), 3);
+        assertEq(sequencer.numNetworks(), 3);
         assertEq(sequencer.activeNetworks(0), NET_A);
         assertEq(sequencer.activeNetworks(1), NET_B);
         assertEq(sequencer.activeNetworks(2), NET_C);
@@ -248,9 +250,26 @@ contract DssCronTest is DSTest {
         // Should move NET_C (last element) to slot 0
         sequencer.removeNetwork(0);
 
-
-        assertEq(sequencer.count(), 2);
+        assertEq(sequencer.numNetworks(), 2);
         assertEq(sequencer.activeNetworks(0), NET_C);
+        assertEq(sequencer.activeNetworks(1), NET_B);
+    }
+
+    function test_sequencer_add_remove_networks_last() public {
+        sequencer.addNetwork(NET_A);
+        sequencer.addNetwork(NET_B);
+        sequencer.addNetwork(NET_C);
+
+        assertEq(sequencer.numNetworks(), 3);
+        assertEq(sequencer.activeNetworks(0), NET_A);
+        assertEq(sequencer.activeNetworks(1), NET_B);
+        assertEq(sequencer.activeNetworks(2), NET_C);
+
+        // Should remove the last element and not re-arrange
+        sequencer.removeNetwork(2);
+
+        assertEq(sequencer.numNetworks(), 2);
+        assertEq(sequencer.activeNetworks(0), NET_A);
         assertEq(sequencer.activeNetworks(1), NET_B);
     }
 
@@ -262,9 +281,9 @@ contract DssCronTest is DSTest {
         bytes32[3] memory networks = [NET_A, NET_B, NET_C];
 
         for (uint256 i = 0; i < sequencer.window() * 10; i++) {
-            assertTrue(sequencer.isMaster(networks[0]) == ((block.number / sequencer.window()) % sequencer.count() == 0));
-            assertTrue(sequencer.isMaster(networks[1]) == ((block.number / sequencer.window()) % sequencer.count() == 1));
-            assertTrue(sequencer.isMaster(networks[2]) == ((block.number / sequencer.window()) % sequencer.count() == 2));
+            assertTrue(sequencer.isMaster(networks[0]) == ((block.number / sequencer.window()) % sequencer.numNetworks() == 0));
+            assertTrue(sequencer.isMaster(networks[1]) == ((block.number / sequencer.window()) % sequencer.numNetworks() == 1));
+            assertTrue(sequencer.isMaster(networks[2]) == ((block.number / sequencer.window()) % sequencer.numNetworks() == 2));
             assertEq(
                 (sequencer.isMaster(networks[0]) ? 1 : 0) +
                 (sequencer.isMaster(networks[1]) ? 1 : 0) +
@@ -273,6 +292,64 @@ contract DssCronTest is DSTest {
 
             hevm.roll(block.number + 1);
         }
+    }
+
+    function test_sequencer_add_job() public {
+        sequencer.addJob(address(autoLineJob));
+
+        assertEq(sequencer.activeJobs(0), address(autoLineJob));
+        assertTrue(sequencer.jobs(address(autoLineJob)));
+        assertEq(sequencer.numJobs(), 1);
+    }
+
+    function test_sequencer_add_dupe_job() public {
+        sequencer.addJob(address(autoLineJob));
+        hevm.expectRevert(abi.encodeWithSignature("JobExists(address)", autoLineJob));
+        sequencer.addJob(address(autoLineJob));
+    }
+
+    function test_sequencer_add_remove_job() public {
+        sequencer.addJob(address(autoLineJob));
+        sequencer.removeJob(0);
+
+        assertTrue(!sequencer.jobs(address(autoLineJob)));
+        assertEq(sequencer.numJobs(), 0);
+    }
+
+    function test_sequencer_add_remove_jobs() public {
+        sequencer.addJob(address(autoLineJob));
+        sequencer.addJob(address(liquidatorJob));
+        sequencer.addJob(address(liquidatorJob500));
+
+        assertEq(sequencer.numJobs(), 3);
+        assertEq(sequencer.activeJobs(0), address(autoLineJob));
+        assertEq(sequencer.activeJobs(1), address(liquidatorJob));
+        assertEq(sequencer.activeJobs(2), address(liquidatorJob500));
+
+        // Should move liquidatorJob500 (last element) to slot 0
+        sequencer.removeJob(0);
+
+        assertEq(sequencer.numJobs(), 2);
+        assertEq(sequencer.activeJobs(0), address(liquidatorJob500));
+        assertEq(sequencer.activeJobs(1), address(liquidatorJob));
+    }
+
+    function test_sequencer_add_remove_jobs_last() public {
+        sequencer.addJob(address(autoLineJob));
+        sequencer.addJob(address(liquidatorJob));
+        sequencer.addJob(address(liquidatorJob500));
+
+        assertEq(sequencer.numJobs(), 3);
+        assertEq(sequencer.activeJobs(0), address(autoLineJob));
+        assertEq(sequencer.activeJobs(1), address(liquidatorJob));
+        assertEq(sequencer.activeJobs(2), address(liquidatorJob500));
+
+        // Should remove the last element and not re-arrange anything
+        sequencer.removeJob(2);
+
+        assertEq(sequencer.numJobs(), 2);
+        assertEq(sequencer.activeJobs(0), address(autoLineJob));
+        assertEq(sequencer.activeJobs(1), address(liquidatorJob));
     }
 
     // --- AutoLineJob tests ---
@@ -294,14 +371,13 @@ contract DssCronTest is DSTest {
 
     function clear_other_ilks(bytes32 network) internal {
         while(true) {
-            (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(network);
-            if (!canExec) break;
-            bytes32 ilk = abi.decode(execPayload, (bytes32));
+            (bool canWork, bytes memory args) = autoLineJob.workable(network);
+            if (!canWork) break;
+            bytes32 ilk = abi.decode(args, (bytes32));
             if (ilk == ILK) break;
             (,,, uint256 line,) = vat.ilks(ilk);
-            (bool success, bytes memory result) = target.call(execPayload);
-            uint256 newLine = abi.decode(result, (uint256));
-            assertTrue(success, "Execution should have succeeded.");
+            autoLineJob.work(network, args);
+            (,,, uint256 newLine,) = vat.ilks(ilk);
             assertTrue(line != newLine, "Line should have changed.");
         }
     }
@@ -338,27 +414,24 @@ contract DssCronTest is DSTest {
     }
 
     function trigger_next_autoline_job(bytes32 network, bytes32 ilk) internal {
-        (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(network);
-        assertTrue(canExec, "Expecting to be able to execute.");
-        assertEq(target, address(autoline));
-        bytes memory expectedPayload = abi.encodeWithSelector(AutoLineLike.exec.selector, ilk);
-        for (uint256 i = 0; i < expectedPayload.length; i++) {
-            assertEq(execPayload[i], expectedPayload[i]);
+        (bool canWork, bytes memory args) = autoLineJob.workable(network);
+        assertTrue(canWork, "Expecting to be able to execute.");
+        bytes memory expectedArgs = abi.encode(ilk);
+        for (uint256 i = 0; i < expectedArgs.length; i++) {
+            assertEq(args[i], expectedArgs[i]);
         }
         (,,, uint256 line,) = vat.ilks(ilk);
-        (bool success, bytes memory result) = target.call(execPayload);
-        uint256 newLine = abi.decode(result, (uint256));
-        assertTrue(success, "Execution should have succeeded.");
+        autoLineJob.work(network, args);
+        (,,, uint256 newLine,) = vat.ilks(ilk);
         assertTrue(line != newLine, "Line should have changed.");
     }
 
     function verify_no_autoline_job(bytes32 network) internal {
-        (bool canExec, address target, bytes memory execPayload) = autoLineJob.getNextJob(network);
-        assertTrue(!canExec, "Expecting NOT to be able to execute.");
-        assertEq(target, address(0));
-        bytes memory expectedPayload = "No ilks ready";
-        for (uint256 i = 0; i < expectedPayload.length; i++) {
-            assertEq(execPayload[i], expectedPayload[i]);
+        (bool canWork, bytes memory args) = autoLineJob.workable(network);
+        assertTrue(!canWork, "Expecting NOT to be able to execute.");
+        bytes memory expectedArgs = "No ilks ready";
+        for (uint256 i = 0; i < expectedArgs.length; i++) {
+            assertEq(args[i], expectedArgs[i]);
         }
     }
 
@@ -494,21 +567,19 @@ contract DssCronTest is DSTest {
     }
 
     function trigger_next_liquidation_job(bytes32 network, LiquidatorJob liquidator) internal {
-        (bool canExec, address target,) = liquidator.getNextJob(network);
-        assertTrue(canExec, "Expecting to be able to execute.");
-        assertEq(target, address(liquidator));
+        (bool canWork, bytes memory args) = liquidator.workable(network);
+        assertTrue(canWork, "Expecting to be able to execute.");
         // No need to actually execute as the detection of a successful job will execute
-        //(bool success,) = target.call(execPayload);
+        //(bool success,) = target.call(args);
         //assertTrue(success, "Execution should have succeeded.");
     }
 
     function verify_no_liquidation_job(bytes32 network, LiquidatorJob liquidator) internal {
-        (bool canExec, address target, bytes memory execPayload) = liquidator.getNextJob(network);
-        assertTrue(!canExec, "Expecting NOT to be able to execute.");
-        assertEq(target, address(0));
-        bytes memory expectedPayload = "No auctions";
-        for (uint256 i = 0; i < expectedPayload.length; i++) {
-            assertEq(execPayload[i], expectedPayload[i]);
+        (bool canWork, bytes memory args) = liquidator.workable(network);
+        assertTrue(!canWork, "Expecting NOT to be able to execute.");
+        bytes memory expectedArgs = "No auctions";
+        for (uint256 i = 0; i < expectedArgs.length; i++) {
+            assertEq(args[i], expectedArgs[i]);
         }
     }
 
@@ -527,7 +598,7 @@ contract DssCronTest is DSTest {
         verify_no_liquidation_job(NET_A, liquidatorJob);
 
         // This will put it just below market price -- should trigger with only the no profit one
-        hevm.warp(block.timestamp + 30 minutes);
+        hevm.warp(block.timestamp + 31 minutes);
 
         verify_no_liquidation_job(NET_A, liquidatorJob500);
         uint256 vowDai = vat.dai(vow);
@@ -555,7 +626,7 @@ contract DssCronTest is DSTest {
         verify_no_liquidation_job(NET_A, liquidatorJob500);
 
         // This will put it just below market price -- should still not trigger
-        hevm.warp(block.timestamp + 30 minutes);
+        hevm.warp(block.timestamp + 31 minutes);
         verify_no_liquidation_job(NET_A, liquidatorJob500);
 
         // A little bit further

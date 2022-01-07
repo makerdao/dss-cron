@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity ^0.8.9;
+pragma solidity 0.8.9;
 
 import "./IJob.sol";
 
@@ -26,6 +26,7 @@ interface VatLike {
     function hope(address) external;
     function dai(address) external view returns (uint256);
     function move(address, address, uint256) external;
+    function wards(address) external view returns (uint256);
 }
 
 interface DaiJoinLike {
@@ -66,10 +67,6 @@ interface ClipLike {
     function sales(uint256) external view returns (uint256,uint256,uint256,address,uint96,uint256);
 }
 
-interface ILiquidatorJob {
-    function execute(address target, bytes calldata data) external;
-}
-
 // Provide backstop liquidations across all supported DEXs
 contract LiquidatorJob is IJob {
 
@@ -86,6 +83,10 @@ contract LiquidatorJob is IJob {
     address public immutable uniswapV3Callee;
     uint256 public immutable minProfitBPS;          // Profit as % of debt owed
 
+    // --- Errors ---
+    error NotMaster(bytes32 network);
+    error InvalidClipper(bytes32 network, address clip);
+
     constructor(address _sequencer, address _daiJoin, address _ilkRegistry, address _profitTarget, address _uniswapV3Callee, uint256 _minProfitBPS) {
         sequencer = SequencerLike(_sequencer);
         daiJoin = DaiJoinLike(_daiJoin);
@@ -99,64 +100,66 @@ contract LiquidatorJob is IJob {
         dai.approve(_daiJoin, type(uint256).max);
     }
 
-    // Warning! This contract can execute arbitrary code. Never give authorizations to anything.
-    function execute(address target, bytes calldata data) public {
-        if (vat.can(address(this), target) != 1) {
-            vat.hope(target);
+    function work(bytes32 network, bytes calldata args) public {
+        if (!sequencer.isMaster(network)) revert NotMaster(network);
+        
+        (address clip, uint256 auction, bytes memory calleePayload) = abi.decode(args, (address, uint256, bytes));
+        
+        // Verify clipper is a valid contract
+        // Easiest way to do this is check it's authed on the vat
+        if (vat.wards(clip) != 1) revert InvalidClipper(network, clip);
+
+        if (vat.can(address(this), clip) != 1) {
+            vat.hope(clip);
         }
-        (bool success,) = target.call(data);
-        require(success, "call failed");
+        ClipLike(clip).take(
+            auction,
+            type(uint256).max,
+            type(uint256).max,
+            uniswapV3Callee,
+            calleePayload
+        );
 
         // Dump all extra DAI into the profit target
         daiJoin.join(address(this), dai.balanceOf(address(this)));
         vat.move(address(this), profitTarget, vat.dai(address(this)));
     }
 
-    function getNextJob(bytes32 network) external override returns (bool, address, bytes memory) {
-        if (!sequencer.isMaster(network)) return (false, address(0), bytes("Network is not master"));
+    function workable(bytes32 network) external override returns (bool, bytes memory) {
+        if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
         
         bytes32[] memory ilks = ilkRegistry.list();
         for (uint256 i = 0; i < ilks.length; i++) {
-            bytes32 ilk = ilks[i];
-            (,, uint256 class,, address gem,, address join, address clip) = ilkRegistry.info(ilk);
+            (,, uint256 class,, address gem,, address join, address clip) = ilkRegistry.info(ilks[i]);
             if (class != 1) continue;
             if (clip == address(0)) continue;
             
             uint256[] memory auctions = ClipLike(clip).list();
             for (uint256 o = 0; o < auctions.length; o++) {
-                uint256 auction = auctions[o];
-
                 // Attempt to run this through Uniswap V3 liquidator
                 uint24[2] memory fees = [uint24(500), uint24(3000)];
                 for (uint256 p = 0; p < fees.length; p++) {
-                    bytes memory data;
+                    bytes memory args;
                     {
                         // Stack too deep
-                        (, uint256 tab,,,,) = ClipLike(clip).sales(auction);
-                        bytes memory exchangeCalleeData = abi.encode(
+                        (, uint256 tab,,,,) = ClipLike(clip).sales(auctions[o]);
+                        bytes memory calleePayload = abi.encode(
                             address(this),
                             join,
                             tab * minProfitBPS / BPS / RAY,
                             abi.encodePacked(gem, fees[p], dai),
                             address(0)
                         );
-                        data = abi.encodeWithSelector(
-                            ClipLike.take.selector,
-                            auction,
-                            type(uint256).max,
-                            type(uint256).max,
-                            uniswapV3Callee,
-                            exchangeCalleeData
+                        args = abi.encode(
+                            clip,
+                            auctions[o],
+                            calleePayload
                         );
                     }
 
-                    try this.execute(clip, data) {
+                    try this.work(network, args) {
                         // Found an auction!
-                        return (true, address(this), abi.encodeWithSelector(
-                            ILiquidatorJob.execute.selector,
-                            clip,
-                            data
-                        ));
+                        return (true, args);
                     } catch {
                         // No valid auction -- carry on
                     }
@@ -164,7 +167,7 @@ contract LiquidatorJob is IJob {
             }
         }
 
-        return (false, address(0), bytes("No auctions"));
+        return (false, bytes("No auctions"));
     }
 
 }

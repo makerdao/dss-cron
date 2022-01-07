@@ -15,10 +15,20 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.9;
 
+interface JobLike {
+    function workable(bytes32 network) external returns (bool canWork, bytes memory args);
+}
+
 // Coordination between Keeper Networks
 // Only one should be active at a time
 // Use the block number to switch between networks
 contract Sequencer {
+
+    struct WorkableJob {
+        address job;
+        bool canWork;
+        bytes args;
+    }
 
     // --- Auth ---
     mapping (address => uint256) public wards;
@@ -39,6 +49,10 @@ contract Sequencer {
 
     mapping (bytes32 => bool) public networks;
     bytes32[] public activeNetworks;
+
+    mapping (address => bool) public jobs;
+    address[] public activeJobs;
+
     uint256 public window;
 
     // --- Events ---
@@ -47,6 +61,14 @@ contract Sequencer {
     event File(bytes32 indexed what, uint256 data);
     event AddNetwork(bytes32 indexed network);
     event RemoveNetwork(bytes32 indexed network);
+    event AddJob(address indexed job);
+    event RemoveJob(address indexed job);
+
+    // --- Errors ---
+    error InvalidFileParam(bytes32 what);
+    error NetworkExists(bytes32 network);
+    error JobExists(address job);
+    error IndexTooHigh(uint256 index);
 
     constructor () {
         wards[msg.sender] = 1;
@@ -57,12 +79,14 @@ contract Sequencer {
     function file(bytes32 what, uint256 data) external auth {
         if (what == "window") {
             window = data;
-        } else revert("Sequencer/file-unrecognized-param");
+        } else revert InvalidFileParam(what);
 
         emit File(what, data);
     }
+
+    // --- Network Admin ---
     function addNetwork(bytes32 network) external auth {
-        require(!networks[network], "Sequencer/network-exists");
+        if (networks[network]) revert NetworkExists(network);
 
         activeNetworks.push(network);
         networks[network] = true;
@@ -70,7 +94,7 @@ contract Sequencer {
         emit AddNetwork(network);
     }
     function removeNetwork(uint256 index) external auth {
-        require(index < activeNetworks.length, "Sequencer/index-too-high");
+        if (index >= activeNetworks.length) revert IndexTooHigh(index);
 
         bytes32 network = activeNetworks[index];
         if (index != activeNetworks.length - 1) {
@@ -82,17 +106,61 @@ contract Sequencer {
         emit RemoveNetwork(network);
     }
 
+    // --- Job Admin ---
+    function addJob(address job) external auth {
+        if (jobs[job]) revert JobExists(job);
+
+        activeJobs.push(job);
+        jobs[job] = true;
+
+        emit AddJob(job);
+    }
+    function removeJob(uint256 index) external auth {
+        if (index >= activeJobs.length) revert IndexTooHigh(index);
+
+        address job = activeJobs[index];
+        if (index != activeJobs.length - 1) {
+            activeJobs[index] = activeJobs[activeJobs.length - 1];
+        }
+        activeJobs.pop();
+        jobs[job] = false;
+
+        emit RemoveJob(job);
+    }
+
     // --- Views ---
-    function isMaster(bytes32 network) external view returns (bool) {
+    function isMaster(bytes32 network) public view returns (bool) {
         if (activeNetworks.length == 0) return false;
 
         return network == activeNetworks[(block.number / window) % activeNetworks.length];
     }
-    function count() external view returns (uint256) {
+
+    function numNetworks() external view returns (uint256) {
         return activeNetworks.length;
     }
-    function list() external view returns (bytes32[] memory) {
+    function listAllNetworks() external view returns (bytes32[] memory) {
         return activeNetworks;
+    }
+
+    function numJobs() external view returns (uint256) {
+        return activeJobs.length;
+    }
+    function listAllJobs() external view returns (address[] memory) {
+        return activeJobs;
+    }
+
+    // --- Job helper functions ---
+    function getNextJobs(bytes32 network, uint256 startIndex, uint256 endIndexExcl) public returns (WorkableJob[] memory) {
+        WorkableJob[] memory _jobs = new WorkableJob[](endIndexExcl - startIndex);
+        for (uint256 i = startIndex; i < endIndexExcl; i++) {
+            JobLike job = JobLike(activeJobs[i]);
+            (bool canWork, bytes memory args) = job.workable(network);
+            _jobs[i - startIndex] = WorkableJob(address(job), canWork, args);
+        }
+        return _jobs;
+    }
+    function getNextJobs(bytes32 network) external returns (WorkableJob[] memory) {
+        return this.getNextJobs(network, 0, activeJobs.length);
     }
 
 }
