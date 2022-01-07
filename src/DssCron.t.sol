@@ -248,9 +248,26 @@ contract DssCronTest is DSTest {
         // Should move NET_C (last element) to slot 0
         sequencer.removeNetwork(0);
 
-
         assertEq(sequencer.numNetworks(), 2);
         assertEq(sequencer.activeNetworks(0), NET_C);
+        assertEq(sequencer.activeNetworks(1), NET_B);
+    }
+
+    function test_sequencer_add_remove_networks_last() public {
+        sequencer.addNetwork(NET_A);
+        sequencer.addNetwork(NET_B);
+        sequencer.addNetwork(NET_C);
+
+        assertEq(sequencer.numNetworks(), 3);
+        assertEq(sequencer.activeNetworks(0), NET_A);
+        assertEq(sequencer.activeNetworks(1), NET_B);
+        assertEq(sequencer.activeNetworks(2), NET_C);
+
+        // Should remove the last element and not re-arrange
+        sequencer.removeNetwork(2);
+
+        assertEq(sequencer.numNetworks(), 2);
+        assertEq(sequencer.activeNetworks(0), NET_A);
         assertEq(sequencer.activeNetworks(1), NET_B);
     }
 
@@ -273,6 +290,63 @@ contract DssCronTest is DSTest {
 
             hevm.roll(block.number + 1);
         }
+    }
+
+    function test_sequencer_add_job() public {
+        sequencer.addJob(address(autoLineJob));
+
+        assertEq(sequencer.activeJobs(0), address(autoLineJob));
+        assertTrue(sequencer.jobs(address(autoLineJob)));
+        assertEq(sequencer.numJobs(), 1);
+    }
+
+    function testFail_sequencer_add_dupe_job() public {
+        sequencer.addJob(address(autoLineJob));
+        sequencer.addJob(address(autoLineJob));
+    }
+
+    function test_sequencer_add_remove_job() public {
+        sequencer.addJob(address(autoLineJob));
+        sequencer.removeJob(0);
+
+        assertTrue(!sequencer.jobs(address(autoLineJob)));
+        assertEq(sequencer.numJobs(), 0);
+    }
+
+    function test_sequencer_add_remove_jobs() public {
+        sequencer.addJob(address(autoLineJob));
+        sequencer.addJob(address(liquidatorJob));
+        sequencer.addJob(address(liquidatorJob500));
+
+        assertEq(sequencer.numJobs(), 3);
+        assertEq(sequencer.activeJobs(0), address(autoLineJob));
+        assertEq(sequencer.activeJobs(1), address(liquidatorJob));
+        assertEq(sequencer.activeJobs(2), address(liquidatorJob500));
+
+        // Should move liquidatorJob500 (last element) to slot 0
+        sequencer.removeJob(0);
+
+        assertEq(sequencer.numJobs(), 2);
+        assertEq(sequencer.activeJobs(0), address(liquidatorJob500));
+        assertEq(sequencer.activeJobs(1), address(liquidatorJob));
+    }
+
+    function test_sequencer_add_remove_jobs_last() public {
+        sequencer.addJob(address(autoLineJob));
+        sequencer.addJob(address(liquidatorJob));
+        sequencer.addJob(address(liquidatorJob500));
+
+        assertEq(sequencer.numJobs(), 3);
+        assertEq(sequencer.activeJobs(0), address(autoLineJob));
+        assertEq(sequencer.activeJobs(1), address(liquidatorJob));
+        assertEq(sequencer.activeJobs(2), address(liquidatorJob500));
+
+        // Should remove the last element and not re-arrange anything
+        sequencer.removeJob(2);
+
+        assertEq(sequencer.numJobs(), 2);
+        assertEq(sequencer.activeJobs(0), address(autoLineJob));
+        assertEq(sequencer.activeJobs(1), address(liquidatorJob));
     }
 
     // --- AutoLineJob tests ---
