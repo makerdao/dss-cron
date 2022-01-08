@@ -49,7 +49,7 @@ contract AutoLineJob is IJob {
 
     // --- Errors ---
     error NotMaster(bytes32 network);
-    error OutsideThreshold(bytes32 network, bytes32 ilk);
+    error OutsideThreshold(uint256 line, uint256 nextLine);
 
     constructor(address _sequencer, address _ilkRegistry, address _autoline, uint256 _thi, uint256 _tlo) {
         sequencer = SequencerLike(_sequencer);
@@ -75,7 +75,7 @@ contract AutoLineJob is IJob {
             nextLine != maxLine &&
             nextLine < line + gap * thi / BPS &&
             nextLine + gap * tlo / BPS > line
-        ) revert OutsideThreshold(network, ilk);
+        ) revert OutsideThreshold(line, nextLine);
     }
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
