@@ -114,7 +114,7 @@ contract AutoLineJobTest is DssCronBaseTest {
         }
     }
 
-    function test_autolinejob_raise_line() public {
+    function test_raise_line() public {
         verify_no_autoline_job(NET_A);
 
         mint(ILK, 110 * WAD);           // Over the threshold to raise the DC (10%)
@@ -124,7 +124,7 @@ contract AutoLineJobTest is DssCronBaseTest {
         verify_no_autoline_job(NET_A);
     }
 
-    function test_autolinejob_disabled() public {
+    function test_disabled() public {
         verify_no_autoline_job(NET_A);
 
         mint(ILK, 110 * WAD);
@@ -135,7 +135,7 @@ contract AutoLineJobTest is DssCronBaseTest {
         verify_no_autoline_job(NET_A);
     }
 
-    function test_autolinejob_same_block() public {
+    function test_same_block() public {
         verify_no_autoline_job(NET_A);
 
         mint(ILK, 200 * WAD);
@@ -144,7 +144,7 @@ contract AutoLineJobTest is DssCronBaseTest {
         verify_no_autoline_job(NET_A);
     }
 
-    function test_autolinejob_under_ttl() public {
+    function test_under_ttl() public {
         verify_no_autoline_job(NET_A);
 
         mint(ILK, 200 * WAD);
@@ -159,7 +159,7 @@ contract AutoLineJobTest is DssCronBaseTest {
         verify_no_autoline_job(NET_A);
     }
 
-    function test_autolinejob_diff_block_ttl() public {
+    function test_diff_block_ttl() public {
         verify_no_autoline_job(NET_A);
 
         mint(ILK, 200 * WAD);
@@ -175,7 +175,7 @@ contract AutoLineJobTest is DssCronBaseTest {
         trigger_next_autoline_job(NET_A, ILK);
     }
 
-    function test_autolinejob_lower_line() public {
+    function test_lower_line() public {
         verify_no_autoline_job(NET_A);
 
         mint(ILK, 1000 * WAD);
@@ -191,7 +191,7 @@ contract AutoLineJobTest is DssCronBaseTest {
         verify_no_autoline_job(NET_A);
     }
 
-    function test_autolinejob_autoline_param_change() public {
+    function test_autoline_param_change() public {
         // Adjust max line / gap
         autoline.setIlk(ILK, 6_000 * RAD, 5_000 * RAD, 8 hours);
 
@@ -200,7 +200,7 @@ contract AutoLineJobTest is DssCronBaseTest {
         trigger_next_autoline_job(NET_A, ILK);
     }
 
-    function test_autolinejob_max_line_within_do_nothing_range() public {
+    function test_max_line_within_do_nothing_range() public {
         // Set the new gap / maxLine to be slightly less
         autoline.setIlk(ILK, 999 * RAD, 999 * RAD, 8 hours);
 

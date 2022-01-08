@@ -28,7 +28,7 @@ contract SequencerTest is DssCronBaseTest {
         sequencer.removeNetwork(0);
     }
 
-    function test_sequencer_add_network() public {
+    function test_add_network() public {
         sequencer.addNetwork(NET_A);
 
         assertEq(sequencer.activeNetworks(0), NET_A);
@@ -36,13 +36,13 @@ contract SequencerTest is DssCronBaseTest {
         assertEq(sequencer.numNetworks(), 1);
     }
 
-    function test_sequencer_add_dupe_network() public {
+    function test_add_dupe_network() public {
         sequencer.addNetwork(NET_A);
         hevm.expectRevert(abi.encodeWithSignature("NetworkExists(bytes32)", NET_A));
         sequencer.addNetwork(NET_A);
     }
 
-    function test_sequencer_add_remove_network() public {
+    function test_add_remove_network() public {
         sequencer.addNetwork(NET_A);
         sequencer.removeNetwork(0);
 
@@ -50,7 +50,7 @@ contract SequencerTest is DssCronBaseTest {
         assertEq(sequencer.numNetworks(), 0);
     }
 
-    function test_sequencer_add_remove_networks() public {
+    function test_add_remove_networks() public {
         sequencer.addNetwork(NET_A);
         sequencer.addNetwork(NET_B);
         sequencer.addNetwork(NET_C);
@@ -68,7 +68,7 @@ contract SequencerTest is DssCronBaseTest {
         assertEq(sequencer.activeNetworks(1), NET_B);
     }
 
-    function test_sequencer_add_remove_networks_last() public {
+    function test_add_remove_networks_last() public {
         sequencer.addNetwork(NET_A);
         sequencer.addNetwork(NET_B);
         sequencer.addNetwork(NET_C);
@@ -86,7 +86,7 @@ contract SequencerTest is DssCronBaseTest {
         assertEq(sequencer.activeNetworks(1), NET_B);
     }
 
-    function test_sequencer_rotation() public {
+    function test_rotation() public {
         sequencer.addNetwork(NET_A);
         sequencer.addNetwork(NET_B);
         sequencer.addNetwork(NET_C);
@@ -107,7 +107,7 @@ contract SequencerTest is DssCronBaseTest {
         }
     }
 
-    function test_sequencer_add_job() public {
+    function test_add_job() public {
         sequencer.addJob(ADDR0);
 
         assertEq(sequencer.activeJobs(0), ADDR0);
@@ -115,13 +115,13 @@ contract SequencerTest is DssCronBaseTest {
         assertEq(sequencer.numJobs(), 1);
     }
 
-    function test_sequencer_add_dupe_job() public {
+    function test_add_dupe_job() public {
         sequencer.addJob(ADDR0);
         hevm.expectRevert(abi.encodeWithSignature("JobExists(address)", ADDR0));
         sequencer.addJob(ADDR0);
     }
 
-    function test_sequencer_add_remove_job() public {
+    function test_add_remove_job() public {
         sequencer.addJob(ADDR0);
         sequencer.removeJob(0);
 
@@ -129,7 +129,7 @@ contract SequencerTest is DssCronBaseTest {
         assertEq(sequencer.numJobs(), 0);
     }
 
-    function test_sequencer_add_remove_jobs() public {
+    function test_add_remove_jobs() public {
         sequencer.addJob(ADDR0);
         sequencer.addJob(ADDR1);
         sequencer.addJob(ADDR2);
@@ -147,7 +147,7 @@ contract SequencerTest is DssCronBaseTest {
         assertEq(sequencer.activeJobs(1), ADDR1);
     }
 
-    function test_sequencer_add_remove_jobs_last() public {
+    function test_add_remove_jobs_last() public {
         sequencer.addJob(ADDR0);
         sequencer.addJob(ADDR1);
         sequencer.addJob(ADDR2);
