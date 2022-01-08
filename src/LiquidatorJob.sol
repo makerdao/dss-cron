@@ -85,7 +85,7 @@ contract LiquidatorJob is IJob {
 
     // --- Errors ---
     error NotMaster(bytes32 network);
-    error InvalidClipper(bytes32 network, address clip);
+    error InvalidClipper(address clip);
 
     constructor(address _sequencer, address _daiJoin, address _ilkRegistry, address _profitTarget, address _uniswapV3Callee, uint256 _minProfitBPS) {
         sequencer = SequencerLike(_sequencer);
@@ -107,7 +107,7 @@ contract LiquidatorJob is IJob {
         
         // Verify clipper is a valid contract
         // Easiest way to do this is check it's authed on the vat
-        if (vat.wards(clip) != 1) revert InvalidClipper(network, clip);
+        if (vat.wards(clip) != 1) revert InvalidClipper(clip);
 
         if (vat.can(address(this), clip) != 1) {
             vat.hope(clip);

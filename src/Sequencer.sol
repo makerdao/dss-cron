@@ -68,7 +68,8 @@ contract Sequencer {
     error InvalidFileParam(bytes32 what);
     error NetworkExists(bytes32 network);
     error JobExists(address job);
-    error IndexTooHigh(uint256 index);
+    error IndexTooHigh(uint256 index, uint256 length);
+    error BadIndicies(uint256 startIndex, uint256 exclEndIndex);
 
     constructor () {
         wards[msg.sender] = 1;
@@ -94,7 +95,7 @@ contract Sequencer {
         emit AddNetwork(network);
     }
     function removeNetwork(uint256 index) external auth {
-        if (index >= activeNetworks.length) revert IndexTooHigh(index);
+        if (index >= activeNetworks.length) revert IndexTooHigh(index, activeNetworks.length);
 
         bytes32 network = activeNetworks[index];
         if (index != activeNetworks.length - 1) {
@@ -116,7 +117,7 @@ contract Sequencer {
         emit AddJob(job);
     }
     function removeJob(uint256 index) external auth {
-        if (index >= activeJobs.length) revert IndexTooHigh(index);
+        if (index >= activeJobs.length) revert IndexTooHigh(index, activeJobs.length);
 
         address job = activeJobs[index];
         if (index != activeJobs.length - 1) {
@@ -151,6 +152,9 @@ contract Sequencer {
 
     // --- Job helper functions ---
     function getNextJobs(bytes32 network, uint256 startIndex, uint256 endIndexExcl) public returns (WorkableJob[] memory) {
+        if (endIndexExcl < startIndex) revert BadIndicies(startIndex, endIndexExcl);
+        if (endIndexExcl > activeJobs.length) revert IndexTooHigh(endIndexExcl, activeJobs.length);
+        
         WorkableJob[] memory _jobs = new WorkableJob[](endIndexExcl - startIndex);
         for (uint256 i = startIndex; i < endIndexExcl; i++) {
             JobLike job = JobLike(activeJobs[i]);
