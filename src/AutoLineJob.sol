@@ -35,7 +35,7 @@ interface VatLike {
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
 }
 
-// Trigger autoline updates based on thresholds
+/// @title Trigger autoline updates based on thresholds
 contract AutoLineJob is IJob {
 
     uint256 constant internal BPS = 10 ** 4;

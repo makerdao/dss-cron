@@ -21,7 +21,8 @@ interface SequencerLike {
     function isMaster(bytes32 network) external view returns (bool);
 }
 
-// Execute some job on a timer
+/// @title A job that executes at a fixed interval
+/// @dev Extend this contract to easily execute some action at a fixed interval
 abstract contract TimedJob is IJob {
     
     SequencerLike public immutable sequencer;

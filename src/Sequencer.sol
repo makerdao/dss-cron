@@ -19,9 +19,10 @@ interface JobLike {
     function workable(bytes32 network) external returns (bool canWork, bytes memory args);
 }
 
-// Coordination between Keeper Networks
-// Only one should be active at a time
-// Use the block number to switch between networks
+/// @title Coordination between Keeper Networks
+/// @dev Only one should be active at a time
+///
+/// Use the block number to switch between networks
 contract Sequencer {
 
     struct WorkableJob {

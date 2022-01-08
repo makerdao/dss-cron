@@ -21,7 +21,7 @@ interface LerpFactoryLike {
     function tall() external;
 }
 
-// Tick all lerps
+/// @title Tick all lerps
 contract LerpJob is TimedJob {
     
     LerpFactoryLike public immutable lerpFactory;

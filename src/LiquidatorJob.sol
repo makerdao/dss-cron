@@ -67,7 +67,7 @@ interface ClipLike {
     function sales(uint256) external view returns (uint256,uint256,uint256,address,uint96,uint256);
 }
 
-// Provide backstop liquidations across all supported DEXs
+/// @title Provide backstop liquidations across all supported DEXs
 contract LiquidatorJob is IJob {
 
     uint256 constant internal BPS = 10 ** 4;
