@@ -95,7 +95,7 @@ contract LiquidatorTest is DssCronBaseTest {
         }
     }
 
-    function test_liquidation_eth_a() public {
+    function test_eth_a() public {
         // Setup auction
         uint256 auctionId = wethClip.kicks() + 1;
         dog.bark("ETH-A", address(this), address(this));
@@ -123,7 +123,7 @@ contract LiquidatorTest is DssCronBaseTest {
         assertGt(vat.dai(vow), vowDai);
     }
 
-    function test_liquidation_eth_a_profit() public {
+    function test_eth_a_profit() public {
         // Setup auction
         uint256 auctionId = wethClip.kicks() + 1;
         dog.bark("ETH-A", address(this), address(this));

@@ -45,6 +45,7 @@ interface VatLike {
     function hope(address) external;
     function dai(address) external view returns (uint256);
     function Line() external view returns (uint256);
+    function urns(bytes32, address) external view returns (uint256, uint256);
 }
 
 interface DaiJoinLike {
@@ -72,6 +73,7 @@ abstract contract DssCronBaseTest is DSTest {
     uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
     uint256 constant RAD = 10 ** 45;
+    uint256 constant BPS = 10 ** 4;
 
     Hevm hevm;
 

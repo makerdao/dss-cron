@@ -27,6 +27,7 @@ interface IJob {
 
     /// @notice Ask this job if it has a unit of work available
     /// @dev This should never revert, only return false if nothing is available
+    /// @dev This should normally be a view, but sometimes that's not possible
     /// @param network The name of the external keeper network
     /// @return canWork Returns true if a unit of work is available
     /// @return args The custom arguments to be provided to work() or an error string if canWork is false
