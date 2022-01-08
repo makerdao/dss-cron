@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.9;
 
-import "./IJob.sol";
+import {IJob} from "../interfaces/IJob.sol";
 
 interface SequencerLike {
     function isMaster(bytes32 network) external view returns (bool);

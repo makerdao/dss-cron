@@ -16,10 +16,10 @@
 pragma solidity 0.8.9;
 
 import "ds-test/test.sol";
-import {Sequencer} from "./Sequencer.sol";
-import {AutoLineJob} from "./AutoLineJob.sol";
-import {LiquidatorJob} from "./LiquidatorJob.sol";
-import {LerpJob} from "./LerpJob.sol";
+import {Sequencer} from "../Sequencer.sol";
+import {AutoLineJob} from "../AutoLineJob.sol";
+import {LiquidatorJob} from "../LiquidatorJob.sol";
+import {LerpJob} from "../LerpJob.sol";
 
 interface Hevm {
     function warp(uint256) external;
