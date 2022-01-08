@@ -65,7 +65,6 @@ contract AaveDirectJobTest is DssCronBaseTest {
         assertEq(getD3MDebt(), 0);
         aaveDirect.file("bar", getBorrowRate());
         aaveDirect.exec();
-        assertEq(getD3MDebt(), 0);
     }
 
     function getBorrowRate() public view returns (uint256 borrowRate) {
@@ -76,7 +75,7 @@ contract AaveDirectJobTest is DssCronBaseTest {
         (, debt) = vat.urns(aaveDirectJob.ilk(), address(aaveDirect));
     }
 
-    function test_direct_increase() public {
+    function test_direct_increase_decrease() public {
         bytes memory args;
         (bool canExec, ) = aaveDirectJob.workable(NET_A);
         assertTrue(!canExec, "Should not be able to execute");
@@ -92,8 +91,24 @@ contract AaveDirectJobTest is DssCronBaseTest {
         assertTrue(canExec, "Should be able to execute");
 
         // Execute it
+        uint256 prevDebt = getD3MDebt();
         aaveDirectJob.work(NET_A, args);
-        assertGt(getD3MDebt(), 0);
+        assertGt(getD3MDebt(), prevDebt);
+
+        // Increase the bar by very small amount (10bps) -- should not trigger
+        aaveDirect.file("bar", getBorrowRate() * (BPS + 10) / BPS);
+        (canExec, ) = aaveDirectJob.workable(NET_A);
+        assertTrue(!canExec, "Should not be able to execute");
+
+        // Increase the bar over the threshold (100bps) -- should trigger
+        aaveDirect.file("bar", getBorrowRate() * (BPS + 100) / BPS);
+        (canExec, args) = aaveDirectJob.workable(NET_A);
+        assertTrue(canExec, "Should be able to execute");
+
+        // Execute it
+        prevDebt = getD3MDebt();
+        aaveDirectJob.work(NET_A, args);
+        assertLt(getD3MDebt(), prevDebt);
     }
 
 }
