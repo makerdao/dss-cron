@@ -19,6 +19,7 @@ import "ds-test/test.sol";
 import {Sequencer} from "./Sequencer.sol";
 import {AutoLineJob} from "./AutoLineJob.sol";
 import {LiquidatorJob} from "./LiquidatorJob.sol";
+import {LerpJob} from "./LerpJob.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -52,6 +53,7 @@ interface VatLike {
     function file(bytes32, bytes32, uint256) external;
     function hope(address) external;
     function dai(address) external view returns (uint256);
+    function Line() external view returns (uint256);
 }
 
 interface DaiJoinLike {
@@ -92,6 +94,12 @@ interface ClipLike {
     function list() external view returns (uint256[] memory);
 }
 
+interface LerpFactoryLike {
+    function newLerp(bytes32, address, bytes32, uint256, uint256, uint256, uint256) external view returns (address);
+    function count() external view returns (uint256);
+    function active(uint256) external view returns (address);
+}
+
 // Integration tests against live MCD
 contract DssCronTest is DSTest {
 
@@ -113,12 +121,14 @@ contract DssCronTest is DSTest {
     DogLike dog;
     address vow;
     address uniswapV3Callee;
+    LerpFactoryLike lerpFactory;
     Sequencer sequencer;
 
     // Jobs
     AutoLineJob autoLineJob;
     LiquidatorJob liquidatorJob;
     LiquidatorJob liquidatorJob500;
+    LerpJob lerpJob;
 
     bytes32 constant NET_A = "NTWK-A";
     bytes32 constant NET_B = "NTWK-B";
@@ -144,9 +154,12 @@ contract DssCronTest is DSTest {
         dog = DogLike(0x135954d155898D42C90D2a57824C690e0c7BEf1B);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         uniswapV3Callee = 0xdB9C76109d102d2A1E645dCa3a7E671EBfd8e11A;
+        lerpFactory = LerpFactoryLike(0x9175561733D138326FDeA86CdFdF53e92b588276);
+
         autoLineJob = new AutoLineJob(address(sequencer), address(ilkRegistry), address(autoline), 1000, 2000);                         // 10% / 20% bands
         liquidatorJob = new LiquidatorJob(address(sequencer), address(daiJoin), address(ilkRegistry), vow, uniswapV3Callee, 0);         // 0% profit expectation
         liquidatorJob500 = new LiquidatorJob(address(sequencer), address(daiJoin), address(ilkRegistry), vow, uniswapV3Callee, 500);    // 5% profit expectation
+        lerpJob = new LerpJob(address(sequencer), address(lerpFactory), 1 days);                                                        // Execute all lerps once a day
     }
 
     function giveAuthAccess(address _base, address target) internal {
@@ -641,6 +654,46 @@ contract DssCronTest is DSTest {
 
         // Profit should go to vow
         assertGt(vat.dai(vow), vowDai);
+    }
+
+    // --- LerpJob tests ---
+
+    function init_lerp() internal {
+        // Add a default network
+        sequencer.addNetwork(NET_A);
+
+        // Setup a dummy lerp to track the timestamps
+        uint256 start = block.timestamp;
+        uint256 end = start + 10 days;
+        lerpFactory.newLerp("A TEST", address(vat), "Line", start, start, end, end - start);
+    }
+
+    function test_lerp() internal {
+        init_lerp();
+        
+        assertTrue(vat.Line() != block.timestamp);      // Randomly this could be false, but seems practically impossible
+        
+        // Initially should be able to work as the expiry is way in the past
+        (bool canWork, bytes memory args) = lerpJob.workable(NET_A);
+        assertTrue(canWork, "Should be able to work");
+        lerpJob.work(NET_A, args);
+        assertEq(vat.Line(), block.timestamp);
+
+        // Cannot call again
+        (canWork, args) = lerpJob.workable(NET_A);
+        assertTrue(!canWork, "Should not be able to work");
+
+        // Fast forward by 23 hours -- still can't call
+        hevm.warp(block.timestamp + 23 hours);
+        (canWork, args) = lerpJob.workable(NET_A);
+        assertTrue(!canWork, "Should not be able to work");
+
+        // Fast forward by 1 hours -- we can call again
+        hevm.warp(block.timestamp + 1 hours);
+        (canWork, args) = lerpJob.workable(NET_A);
+        assertTrue(canWork, "Should be able to work");
+        lerpJob.work(NET_A, args);
+        assertEq(vat.Line(), block.timestamp);
     }
 
 }
