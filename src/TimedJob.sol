@@ -30,7 +30,7 @@ abstract contract TimedJob is IJob {
 
     // --- Errors ---
     error NotMaster(bytes32 network);
-    error TimerNotElapsed();
+    error TimerNotElapsed(uint256 currentTime, uint256 expiry);
 
     constructor(address _sequencer, uint256 _maxDuration) {
         sequencer = SequencerLike(_sequencer);
@@ -39,7 +39,8 @@ abstract contract TimedJob is IJob {
 
     function work(bytes32 network, bytes calldata) external {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
-        if (block.timestamp <= last + maxDuration) revert TimerNotElapsed();
+        uint256 expiry = last + maxDuration;
+        if (block.timestamp <= expiry) revert TimerNotElapsed(block.timestamp, expiry);
         
         last = block.timestamp;
         update();
