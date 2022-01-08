@@ -15,6 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.9;
 
+import "./utils/EnumerableSet.sol";
+
 interface JobLike {
     function workable(bytes32 network) external returns (bool canWork, bytes memory args);
 }
@@ -24,6 +26,9 @@ interface JobLike {
 ///
 /// Use the block number to switch between networks
 contract Sequencer {
+
+    using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSet for EnumerableSet.Bytes32Set;
 
     struct WorkableJob {
         address job;
@@ -48,12 +53,8 @@ contract Sequencer {
         _;
     }
 
-    mapping (bytes32 => bool) public networks;
-    bytes32[] public activeNetworks;
-
-    mapping (address => bool) public jobs;
-    address[] public activeJobs;
-
+    EnumerableSet.Bytes32Set private networks;
+    EnumerableSet.AddressSet private jobs;
     uint256 public window;
 
     // --- Events ---
@@ -68,7 +69,9 @@ contract Sequencer {
     // --- Errors ---
     error InvalidFileParam(bytes32 what);
     error NetworkExists(bytes32 network);
+    error NetworkDoesNotExist(bytes32 network);
     error JobExists(address job);
+    error JobDoesNotExist(address network);
     error IndexTooHigh(uint256 index, uint256 length);
     error BadIndicies(uint256 startIndex, uint256 exclEndIndex);
 
@@ -88,84 +91,79 @@ contract Sequencer {
 
     // --- Network Admin ---
     function addNetwork(bytes32 network) external auth {
-        if (networks[network]) revert NetworkExists(network);
+        if (networks.contains(network)) revert NetworkExists(network);
 
-        activeNetworks.push(network);
-        networks[network] = true;
+        networks.add(network);
 
         emit AddNetwork(network);
     }
-    function removeNetwork(uint256 index) external auth {
-        if (index >= activeNetworks.length) revert IndexTooHigh(index, activeNetworks.length);
-
-        bytes32 network = activeNetworks[index];
-        if (index != activeNetworks.length - 1) {
-            activeNetworks[index] = activeNetworks[activeNetworks.length - 1];
-        }
-        activeNetworks.pop();
-        networks[network] = false;
+    function removeNetwork(bytes32 network) external auth {
+        if (!networks.contains(network)) revert NetworkDoesNotExist(network);
+        
+        networks.remove(network);
 
         emit RemoveNetwork(network);
     }
 
     // --- Job Admin ---
     function addJob(address job) external auth {
-        if (jobs[job]) revert JobExists(job);
+        if (jobs.contains(job)) revert JobExists(job);
 
-        activeJobs.push(job);
-        jobs[job] = true;
+        jobs.add(job);
 
         emit AddJob(job);
     }
-    function removeJob(uint256 index) external auth {
-        if (index >= activeJobs.length) revert IndexTooHigh(index, activeJobs.length);
-
-        address job = activeJobs[index];
-        if (index != activeJobs.length - 1) {
-            activeJobs[index] = activeJobs[activeJobs.length - 1];
-        }
-        activeJobs.pop();
-        jobs[job] = false;
+    function removeJob(address job) external auth {
+        if (!jobs.contains(job)) revert JobDoesNotExist(job);
+        
+        jobs.remove(job);
 
         emit RemoveJob(job);
     }
 
     // --- Views ---
     function isMaster(bytes32 network) public view returns (bool) {
-        if (activeNetworks.length == 0) return false;
+        if (networks.length() == 0) return false;
 
-        return network == activeNetworks[(block.number / window) % activeNetworks.length];
+        return network == networks.at((block.number / window) % networks.length());
     }
 
     function numNetworks() external view returns (uint256) {
-        return activeNetworks.length;
+        return networks.length();
     }
-    function listAllNetworks() external view returns (bytes32[] memory) {
-        return activeNetworks;
+    function hasNetwork(bytes32 network) public view returns (bool) {
+        return networks.contains(network);
+    }
+    function networkAt(uint256 index) public view returns (bytes32) {
+        return networks.at(index);
     }
 
     function numJobs() external view returns (uint256) {
-        return activeJobs.length;
+        return jobs.length();
     }
-    function listAllJobs() external view returns (address[] memory) {
-        return activeJobs;
+    function hasJob(address job) public view returns (bool) {
+        return jobs.contains(job);
+    }
+    function jobAt(uint256 index) public view returns (address) {
+        return jobs.at(index);
     }
 
     // --- Job helper functions ---
     function getNextJobs(bytes32 network, uint256 startIndex, uint256 endIndexExcl) public returns (WorkableJob[] memory) {
         if (endIndexExcl < startIndex) revert BadIndicies(startIndex, endIndexExcl);
-        if (endIndexExcl > activeJobs.length) revert IndexTooHigh(endIndexExcl, activeJobs.length);
+        uint256 length = jobs.length();
+        if (endIndexExcl > length) revert IndexTooHigh(endIndexExcl, length);
         
         WorkableJob[] memory _jobs = new WorkableJob[](endIndexExcl - startIndex);
         for (uint256 i = startIndex; i < endIndexExcl; i++) {
-            JobLike job = JobLike(activeJobs[i]);
+            JobLike job = JobLike(jobs.at(i));
             (bool canWork, bytes memory args) = job.workable(network);
             _jobs[i - startIndex] = WorkableJob(address(job), canWork, args);
         }
         return _jobs;
     }
     function getNextJobs(bytes32 network) external returns (WorkableJob[] memory) {
-        return this.getNextJobs(network, 0, activeJobs.length);
+        return this.getNextJobs(network, 0, jobs.length());
     }
 
 }
