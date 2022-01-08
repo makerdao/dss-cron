@@ -25,14 +25,14 @@ contract SequencerTest is DssCronBaseTest {
 
     function setUpSub() virtual override internal {
         // Remove the default network
-        sequencer.removeNetwork(0);
+        sequencer.removeNetwork(NET_A);
     }
 
     function test_add_network() public {
         sequencer.addNetwork(NET_A);
 
-        assertEq(sequencer.activeNetworks(0), NET_A);
-        assertTrue(sequencer.networks(NET_A));
+        assertEq(sequencer.networkAt(0), NET_A);
+        assertTrue(sequencer.hasNetwork(NET_A));
         assertEq(sequencer.numNetworks(), 1);
     }
 
@@ -44,10 +44,16 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_add_remove_network() public {
         sequencer.addNetwork(NET_A);
-        sequencer.removeNetwork(0);
+        sequencer.removeNetwork(NET_A);
 
-        assertTrue(!sequencer.networks(NET_A));
+        assertTrue(!sequencer.hasNetwork(NET_A));
         assertEq(sequencer.numNetworks(), 0);
+    }
+
+    function test_remove_non_existent_network() public {
+        sequencer.addNetwork(NET_A);
+        hevm.expectRevert(abi.encodeWithSignature("NetworkDoesNotExist(bytes32)", NET_B));
+        sequencer.removeNetwork(NET_B);
     }
 
     function test_add_remove_networks() public {
@@ -56,16 +62,16 @@ contract SequencerTest is DssCronBaseTest {
         sequencer.addNetwork(NET_C);
 
         assertEq(sequencer.numNetworks(), 3);
-        assertEq(sequencer.activeNetworks(0), NET_A);
-        assertEq(sequencer.activeNetworks(1), NET_B);
-        assertEq(sequencer.activeNetworks(2), NET_C);
+        assertEq(sequencer.networkAt(0), NET_A);
+        assertEq(sequencer.networkAt(1), NET_B);
+        assertEq(sequencer.networkAt(2), NET_C);
 
         // Should move NET_C (last element) to slot 0
-        sequencer.removeNetwork(0);
+        sequencer.removeNetwork(NET_A);
 
         assertEq(sequencer.numNetworks(), 2);
-        assertEq(sequencer.activeNetworks(0), NET_C);
-        assertEq(sequencer.activeNetworks(1), NET_B);
+        assertEq(sequencer.networkAt(0), NET_C);
+        assertEq(sequencer.networkAt(1), NET_B);
     }
 
     function test_add_remove_networks_last() public {
@@ -74,16 +80,16 @@ contract SequencerTest is DssCronBaseTest {
         sequencer.addNetwork(NET_C);
 
         assertEq(sequencer.numNetworks(), 3);
-        assertEq(sequencer.activeNetworks(0), NET_A);
-        assertEq(sequencer.activeNetworks(1), NET_B);
-        assertEq(sequencer.activeNetworks(2), NET_C);
+        assertEq(sequencer.networkAt(0), NET_A);
+        assertEq(sequencer.networkAt(1), NET_B);
+        assertEq(sequencer.networkAt(2), NET_C);
 
         // Should remove the last element and not re-arrange
-        sequencer.removeNetwork(2);
+        sequencer.removeNetwork(NET_C);
 
         assertEq(sequencer.numNetworks(), 2);
-        assertEq(sequencer.activeNetworks(0), NET_A);
-        assertEq(sequencer.activeNetworks(1), NET_B);
+        assertEq(sequencer.networkAt(0), NET_A);
+        assertEq(sequencer.networkAt(1), NET_B);
     }
 
     function test_rotation() public {
@@ -110,8 +116,8 @@ contract SequencerTest is DssCronBaseTest {
     function test_add_job() public {
         sequencer.addJob(ADDR0);
 
-        assertEq(sequencer.activeJobs(0), ADDR0);
-        assertTrue(sequencer.jobs(ADDR0));
+        assertEq(sequencer.jobAt(0), ADDR0);
+        assertTrue(sequencer.hasJob(ADDR0));
         assertEq(sequencer.numJobs(), 1);
     }
 
@@ -123,10 +129,16 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_add_remove_job() public {
         sequencer.addJob(ADDR0);
-        sequencer.removeJob(0);
+        sequencer.removeJob(ADDR0);
 
-        assertTrue(!sequencer.jobs(ADDR0));
+        assertTrue(!sequencer.hasJob(ADDR0));
         assertEq(sequencer.numJobs(), 0);
+    }
+
+    function test_remove_non_existent_job() public {
+        sequencer.addJob(ADDR0);
+        hevm.expectRevert(abi.encodeWithSignature("JobDoesNotExist(address)", ADDR1));
+        sequencer.removeJob(ADDR1);
     }
 
     function test_add_remove_jobs() public {
@@ -135,16 +147,16 @@ contract SequencerTest is DssCronBaseTest {
         sequencer.addJob(ADDR2);
 
         assertEq(sequencer.numJobs(), 3);
-        assertEq(sequencer.activeJobs(0), ADDR0);
-        assertEq(sequencer.activeJobs(1), ADDR1);
-        assertEq(sequencer.activeJobs(2), ADDR2);
+        assertEq(sequencer.jobAt(0), ADDR0);
+        assertEq(sequencer.jobAt(1), ADDR1);
+        assertEq(sequencer.jobAt(2), ADDR2);
 
         // Should move liquidatorJob500 (last element) to slot 0
-        sequencer.removeJob(0);
+        sequencer.removeJob(ADDR0);
 
         assertEq(sequencer.numJobs(), 2);
-        assertEq(sequencer.activeJobs(0), ADDR2);
-        assertEq(sequencer.activeJobs(1), ADDR1);
+        assertEq(sequencer.jobAt(0), ADDR2);
+        assertEq(sequencer.jobAt(1), ADDR1);
     }
 
     function test_add_remove_jobs_last() public {
@@ -153,16 +165,16 @@ contract SequencerTest is DssCronBaseTest {
         sequencer.addJob(ADDR2);
 
         assertEq(sequencer.numJobs(), 3);
-        assertEq(sequencer.activeJobs(0), ADDR0);
-        assertEq(sequencer.activeJobs(1), ADDR1);
-        assertEq(sequencer.activeJobs(2), ADDR2);
+        assertEq(sequencer.jobAt(0), ADDR0);
+        assertEq(sequencer.jobAt(1), ADDR1);
+        assertEq(sequencer.jobAt(2), ADDR2);
 
         // Should remove the last element and not re-arrange anything
-        sequencer.removeJob(2);
+        sequencer.removeJob(ADDR2);
 
         assertEq(sequencer.numJobs(), 2);
-        assertEq(sequencer.activeJobs(0), ADDR0);
-        assertEq(sequencer.activeJobs(1), ADDR1);
+        assertEq(sequencer.jobAt(0), ADDR0);
+        assertEq(sequencer.jobAt(1), ADDR1);
     }
 
 }
