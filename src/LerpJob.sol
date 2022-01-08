@@ -15,13 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.9;
 
-import "./TimedJob.sol";
+import {TimedJob} from "./base/TimedJob.sol";
 
 interface LerpFactoryLike {
     function tall() external;
 }
 
-// Tick all lerps
+/// @title Tick all lerps
 contract LerpJob is TimedJob {
     
     LerpFactoryLike public immutable lerpFactory;

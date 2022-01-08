@@ -15,13 +15,14 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.9;
 
-import "./IJob.sol";
+import {IJob} from "../interfaces/IJob.sol";
 
 interface SequencerLike {
     function isMaster(bytes32 network) external view returns (bool);
 }
 
-// Execute some job on a timer
+/// @title A job that executes at a fixed interval
+/// @dev Extend this contract to easily execute some action at a fixed interval
 abstract contract TimedJob is IJob {
     
     SequencerLike public immutable sequencer;

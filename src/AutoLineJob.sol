@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.9;
 
-import "./IJob.sol";
+import {IJob} from "./interfaces/IJob.sol";
 
 interface SequencerLike {
     function isMaster(bytes32 network) external view returns (bool);
@@ -35,7 +35,7 @@ interface VatLike {
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
 }
 
-// Trigger autoline updates based on thresholds
+/// @title Trigger autoline updates based on thresholds
 contract AutoLineJob is IJob {
 
     uint256 constant internal BPS = 10 ** 4;
