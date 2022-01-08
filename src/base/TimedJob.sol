@@ -41,7 +41,7 @@ abstract contract TimedJob is IJob {
     function work(bytes32 network, bytes calldata) external {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
         uint256 expiry = last + maxDuration;
-        if (block.timestamp <= expiry) revert TimerNotElapsed(block.timestamp, expiry);
+        if (block.timestamp < expiry) revert TimerNotElapsed(block.timestamp, expiry);
         
         last = block.timestamp;
         update();
@@ -49,7 +49,7 @@ abstract contract TimedJob is IJob {
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
-        if (block.timestamp <= last + maxDuration) return (false, bytes("Timer hasn't elapsed"));
+        if (block.timestamp < last + maxDuration) return (false, bytes("Timer hasn't elapsed"));
         
         return (true, "");
     }

@@ -19,7 +19,7 @@ import "./DssCronBase.t.sol";
 import {LerpJob} from "../LerpJob.sol";
 
 interface LerpFactoryLike {
-    function newLerp(bytes32, address, bytes32, uint256, uint256, uint256, uint256) external view returns (address);
+    function newLerp(bytes32, address, bytes32, uint256, uint256, uint256, uint256) external returns (address);
     function count() external view returns (uint256);
     function active(uint256) external view returns (address);
 }
@@ -36,13 +36,17 @@ contract LerpJobTest is DssCronBaseTest {
         // Execute all lerps once a day
         lerpJob = new LerpJob(address(sequencer), address(lerpFactory), 1 days);
 
+        // Give admin to this contract 
+        giveAuthAccess(address(lerpFactory), address(this));
+
         // Setup a dummy lerp to track the timestamps
         uint256 start = block.timestamp;
         uint256 end = start + 10 days;
-        lerpFactory.newLerp("A TEST", address(vat), "Line", start, start, end, end - start);
+        address lerp = lerpFactory.newLerp("A TEST", address(vat), "Line", start, start, end, end - start);
+        giveAuthAccess(address(vat), lerp);
     }
 
-    function test_lerp() internal {
+    function test_lerp() public {
         assertTrue(vat.Line() != block.timestamp);      // Randomly this could be false, but seems practically impossible
         
         // Initially should be able to work as the expiry is way in the past

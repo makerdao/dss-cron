@@ -76,7 +76,7 @@ contract AaveDirectJobTest is DssCronBaseTest {
         (, debt) = vat.urns(aaveDirectJob.ilk(), address(aaveDirect));
     }
 
-    function test_direct_increase() internal {
+    function test_direct_increase() public {
         bytes memory args;
         (bool canExec, ) = aaveDirectJob.workable(NET_A);
         assertTrue(!canExec, "Should not be able to execute");
