@@ -6,12 +6,7 @@ Keeper Networks will be required to watch the `activeJobs` array in the `Sequenc
 
 Funding of keeper networks is a separate task.
 
-# New Deployed Contracts (TBA)
+# Deployed Contracts
 
-Sequencer: N/A  
-AutoLineJob: N/A  
-
-# Old Deployed Contracts
-
-Sequencer: [0xa0391743B97AaF8ce2662CeC316902D76c710dD3](https://etherscan.io/address/0xa0391743b97aaf8ce2662cec316902d76c710dd3#code)  
-AutoLineJob: [0xd3E01B079f0a787Fc2143a43E2Bdd799b2f34d9a](https://etherscan.io/address/0xd3E01B079f0a787Fc2143a43E2Bdd799b2f34d9a#code)  
+Sequencer: [0x9566eB72e47E3E20643C0b1dfbEe04Da5c7E4732](https://etherscan.io/address/0x9566eB72e47E3E20643C0b1dfbEe04Da5c7E4732#code)  
+AutoLineJob [thi=1000,tlo=5000]: [0x8f235dD319ef8637964271a9477234f62B02Cb59](https://etherscan.io/address/0x8f235dD319ef8637964271a9477234f62B02Cb59#code)  
