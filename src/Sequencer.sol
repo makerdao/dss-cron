@@ -91,33 +91,21 @@ contract Sequencer {
 
     // --- Network Admin ---
     function addNetwork(bytes32 network) external auth {
-        if (networks.contains(network)) revert NetworkExists(network);
-
-        networks.add(network);
-
+        if (!networks.add(network)) revert NetworkExists(network);
         emit AddNetwork(network);
     }
     function removeNetwork(bytes32 network) external auth {
-        if (!networks.contains(network)) revert NetworkDoesNotExist(network);
-        
-        networks.remove(network);
-
+        if (!networks.remove(network)) revert NetworkDoesNotExist(network);
         emit RemoveNetwork(network);
     }
 
     // --- Job Admin ---
     function addJob(address job) external auth {
-        if (jobs.contains(job)) revert JobExists(job);
-
-        jobs.add(job);
-
+        if (!jobs.add(job)) revert JobExists(job);
         emit AddJob(job);
     }
     function removeJob(address job) external auth {
-        if (!jobs.contains(job)) revert JobDoesNotExist(job);
-        
-        jobs.remove(job);
-
+        if (!jobs.remove(job)) revert JobDoesNotExist(job);
         emit RemoveJob(job);
     }
 
