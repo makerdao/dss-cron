@@ -9,4 +9,9 @@ Funding of keeper networks is a separate task.
 # Deployed Contracts
 
 Sequencer: [0x9566eB72e47E3E20643C0b1dfbEe04Da5c7E4732](https://etherscan.io/address/0x9566eB72e47E3E20643C0b1dfbEe04Da5c7E4732#code)  
-AutoLineJob [thi=1000,tlo=5000]: [0x8f235dD319ef8637964271a9477234f62B02Cb59](https://etherscan.io/address/0x8f235dD319ef8637964271a9477234f62B02Cb59#code)  
+
+## Active Jobs
+
+AutoLineJob [thi=1000 bps, tlo=5000 bps]: [0x8f235dD319ef8637964271a9477234f62B02Cb59](https://etherscan.io/address/0x8f235dD319ef8637964271a9477234f62B02Cb59#code)  
+LerpJob [maxDuration=1 day]: [0x17cE6976de56FAf445956e5713b382C28F7A9390](https://etherscan.io/address/0x17cE6976de56FAf445956e5713b382C28F7A9390#code)  
+AaveDirectJob [threshold=50 bps]: [0xc194673e6157Eca981dEDc1eEf49250aD8055D94](https://etherscan.io/address/0xc194673e6157Eca981dEDc1eEf49250aD8055D94#code)  
