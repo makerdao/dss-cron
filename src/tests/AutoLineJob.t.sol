@@ -16,45 +16,42 @@
 pragma solidity 0.8.9;
 
 import "./DssCronBase.t.sol";
-import {AutoLineJob} from "../AutoLineJob.sol";
+import {DssAutoLineAbstract} from "dss-interfaces/Interfaces.sol";
 
-interface AutoLineLike {
-    function vat() external view returns (address);
-    function ilks(bytes32) external view returns (uint256, uint256, uint48, uint48, uint48);
-    function exec(bytes32) external returns (uint256);
-    function setIlk(bytes32,uint256,uint256,uint256) external;
-    function remIlk(bytes32) external;
-}
+import {AutoLineJob} from "../AutoLineJob.sol";
 
 contract AutoLineJobTest is DssCronBaseTest {
 
-    AutoLineLike autoline;
+    using GodMode for *;
+
+    DssAutoLineAbstract autoline;
+
     AutoLineJob autoLineJob;
 
     function setUpSub() virtual override internal {
-        autoline = AutoLineLike(0xC7Bdd1F2B16447dcf3dE045C4a039A60EC2f0ba3);
+        autoline = DssAutoLineAbstract(mcd.chainlog().getAddress("MCD_IAM_AUTO_LINE"));
         
         // Setup with 10% / 50% bands
         autoLineJob = new AutoLineJob(address(sequencer), address(ilkRegistry), address(autoline), 1000, 5000);
         
-        giveAuthAccess(address(vat), address(this));
-        giveAuthAccess(address(autoline), address(this));
+        mcd.vat().setWard(address(this), 1);
+        address(autoline).setWard(address(this), 1);
 
         // Setup a dummy ilk in the vat
-        vat.init(ILK);
-        vat.file(ILK, "spot", RAY);
-        vat.file(ILK, "line", 1_000 * RAD);
+        mcd.vat().init(ILK);
+        mcd.vat().file(ILK, "spot", RAY);
+        mcd.vat().file(ILK, "line", 1_000 * RAD);
         autoline.setIlk(ILK, 100_000 * RAD, 1_000 * RAD, 8 hours);
 
         // Add to ilk regitry as well (only care about the ilk ids array)
         bytes32 pos = bytes32(uint256(5));
-        uint256 size = uint256(hevm.load(address(ilkRegistry), pos));
-        hevm.store(
+        uint256 size = uint256(GodMode.vm().load(address(ilkRegistry), pos));
+        GodMode.vm().store(
             address(ilkRegistry),
             bytes32(uint256(keccak256(abi.encode(pos))) + size),
             ILK
         );      // Append new ilk
-        hevm.store(
+        GodMode.vm().store(
             address(ilkRegistry),
             pos,
             bytes32(size + 1)
@@ -70,25 +67,25 @@ contract AutoLineJobTest is DssCronBaseTest {
             if (!canWork) break;
             bytes32 ilk = abi.decode(args, (bytes32));
             if (ilk == ILK) break;
-            (,,, uint256 line,) = vat.ilks(ilk);
+            (,,, uint256 line,) = mcd.vat().ilks(ilk);
             autoLineJob.work(network, args);
-            (,,, uint256 newLine,) = vat.ilks(ilk);
+            (,,, uint256 newLine,) = mcd.vat().ilks(ilk);
             assertTrue(line != newLine, "Line should have changed.");
         }
     }
 
     function mint(bytes32 ilk, uint256 wad) internal {
-        (uint256 Art,,,,) = vat.ilks(ilk);
-        vat.slip(ilk, address(this), int256(wad));
-        vat.frob(ilk, address(this), address(this), address(this), int256(wad), int256(wad));
-        (uint256 nextArt,,,,) = vat.ilks(ilk);
+        (uint256 Art,,,,) = mcd.vat().ilks(ilk);
+        mcd.vat().slip(ilk, address(this), int256(wad));
+        mcd.vat().frob(ilk, address(this), address(this), address(this), int256(wad), int256(wad));
+        (uint256 nextArt,,,,) = mcd.vat().ilks(ilk);
         assertEq(nextArt, Art + wad);
     }
     function repay(bytes32 ilk, uint256 wad) internal {
-        (uint256 Art,,,,) = vat.ilks(ilk);
-        vat.frob(ilk, address(this), address(this), address(this), -int256(wad), -int256(wad));
-        vat.slip(ilk, address(this), -int256(wad));
-        (uint256 nextArt,,,,) = vat.ilks(ilk);
+        (uint256 Art,,,,) = mcd.vat().ilks(ilk);
+        mcd.vat().frob(ilk, address(this), address(this), address(this), -int256(wad), -int256(wad));
+        mcd.vat().slip(ilk, address(this), -int256(wad));
+        (uint256 nextArt,,,,) = mcd.vat().ilks(ilk);
         assertEq(nextArt, Art - wad);
     }
 
@@ -99,9 +96,9 @@ contract AutoLineJobTest is DssCronBaseTest {
         for (uint256 i = 0; i < expectedArgs.length; i++) {
             assertEq(args[i], expectedArgs[i]);
         }
-        (,,, uint256 line,) = vat.ilks(ilk);
+        (,,, uint256 line,) = mcd.vat().ilks(ilk);
         autoLineJob.work(network, args);
-        (,,, uint256 newLine,) = vat.ilks(ilk);
+        (,,, uint256 newLine,) = mcd.vat().ilks(ilk);
         assertTrue(line != newLine, "Line should have changed.");
     }
 
@@ -150,7 +147,7 @@ contract AutoLineJobTest is DssCronBaseTest {
         mint(ILK, 200 * WAD);
         trigger_next_autoline_job(NET_A, ILK);
 
-        hevm.roll(block.number + 1);
+        GodMode.vm().roll(block.number + 1);
         
         // It's possible some other ilks are valid now
         clear_other_ilks(NET_A);
@@ -165,8 +162,8 @@ contract AutoLineJobTest is DssCronBaseTest {
         mint(ILK, 200 * WAD);
         trigger_next_autoline_job(NET_A, ILK);
 
-        hevm.roll(block.number + 1);
-        hevm.warp(block.timestamp + 8 hours);
+        GodMode.vm().roll(block.number + 1);
+        GodMode.vm().warp(block.timestamp + 8 hours);
         
         // It's possible some other ilks are valid now
         clear_other_ilks(NET_A);
@@ -180,12 +177,12 @@ contract AutoLineJobTest is DssCronBaseTest {
 
         mint(ILK, 1000 * WAD);
         trigger_next_autoline_job(NET_A, ILK);
-        hevm.roll(block.number + 1);
-        hevm.warp(block.timestamp + 8 hours);
+        GodMode.vm().roll(block.number + 1);
+        GodMode.vm().warp(block.timestamp + 8 hours);
         clear_other_ilks(NET_A);
         mint(ILK, 1000 * WAD);
         trigger_next_autoline_job(NET_A, ILK);
-        hevm.roll(block.number + 1);
+        GodMode.vm().roll(block.number + 1);
         repay(ILK, 500 * WAD);      // 50% threshold of gap
         trigger_next_autoline_job(NET_A, ILK);
         verify_no_autoline_job(NET_A);

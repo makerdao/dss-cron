@@ -42,6 +42,8 @@ interface LendingPoolLike {
 
 contract AaveDirectJobTest is DssCronBaseTest {
 
+    using GodMode for *;
+
     uint256 constant ONE_BPS_RAY = 10 ** 23;
 
     AaveDirectLike aaveDirect;
@@ -57,7 +59,7 @@ contract AaveDirectJobTest is DssCronBaseTest {
         aaveDirectJob = new AaveDirectJob(address(sequencer), address(aaveDirect), 50 * ONE_BPS_RAY);
 
         // Give admin to this contract 
-        giveAuthAccess(address(aaveDirect), address(this));
+        address(aaveDirect).setWard(address(this), 1);
 
         // Empty out the D3M first and match the current aave interest
         aaveDirect.file("bar", 0);
@@ -68,11 +70,11 @@ contract AaveDirectJobTest is DssCronBaseTest {
     }
 
     function getBorrowRate() public view returns (uint256 borrowRate) {
-        (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(dai));
+        (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(mcd.dai()));
     }
 
     function getD3MDebt() public view returns (uint256 debt) {
-        (, debt) = vat.urns(aaveDirectJob.ilk(), address(aaveDirect));
+        (, debt) = mcd.vat().urns(aaveDirectJob.ilk(), address(aaveDirect));
     }
 
     function test_direct_increase_decrease() public {
