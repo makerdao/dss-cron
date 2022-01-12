@@ -38,7 +38,7 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_add_dupe_network() public {
         sequencer.addNetwork(NET_A);
-        hevm.expectRevert(abi.encodeWithSignature("NetworkExists(bytes32)", NET_A));
+        GodMode.vm().expectRevert(abi.encodeWithSignature("NetworkExists(bytes32)", NET_A));
         sequencer.addNetwork(NET_A);
     }
 
@@ -52,7 +52,7 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_remove_non_existent_network() public {
         sequencer.addNetwork(NET_A);
-        hevm.expectRevert(abi.encodeWithSignature("NetworkDoesNotExist(bytes32)", NET_B));
+        GodMode.vm().expectRevert(abi.encodeWithSignature("NetworkDoesNotExist(bytes32)", NET_B));
         sequencer.removeNetwork(NET_B);
     }
 
@@ -109,7 +109,7 @@ contract SequencerTest is DssCronBaseTest {
                 (sequencer.isMaster(networks[2]) ? 1 : 0)
             , 1);       // Only one active at a time
 
-            hevm.roll(block.number + 1);
+            GodMode.vm().roll(block.number + 1);
         }
     }
 
@@ -123,7 +123,7 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_add_dupe_job() public {
         sequencer.addJob(ADDR0);
-        hevm.expectRevert(abi.encodeWithSignature("JobExists(address)", ADDR0));
+        GodMode.vm().expectRevert(abi.encodeWithSignature("JobExists(address)", ADDR0));
         sequencer.addJob(ADDR0);
     }
 
@@ -137,7 +137,7 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_remove_non_existent_job() public {
         sequencer.addJob(ADDR0);
-        hevm.expectRevert(abi.encodeWithSignature("JobDoesNotExist(address)", ADDR1));
+        GodMode.vm().expectRevert(abi.encodeWithSignature("JobDoesNotExist(address)", ADDR1));
         sequencer.removeJob(ADDR1);
     }
 

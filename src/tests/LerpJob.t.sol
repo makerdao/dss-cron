@@ -16,60 +16,58 @@
 pragma solidity 0.8.9;
 
 import "./DssCronBase.t.sol";
-import {LerpJob} from "../LerpJob.sol";
+import {LerpFactoryAbstract} from "dss-interfaces/Interfaces.sol";
 
-interface LerpFactoryLike {
-    function newLerp(bytes32, address, bytes32, uint256, uint256, uint256, uint256) external returns (address);
-    function count() external view returns (uint256);
-    function active(uint256) external view returns (address);
-}
+import {LerpJob} from "../LerpJob.sol";
 
 contract LerpJobTest is DssCronBaseTest {
 
-    LerpFactoryLike lerpFactory;
+    using GodMode for *;
+
+    LerpFactoryAbstract lerpFactory;
 
     LerpJob lerpJob;
 
     function setUpSub() virtual override internal {
-        lerpFactory = LerpFactoryLike(0x9175561733D138326FDeA86CdFdF53e92b588276);
+        lerpFactory = LerpFactoryAbstract(mcd.chainlog().getAddress("LERP_FAB"));
 
         // Execute all lerps once a day
         lerpJob = new LerpJob(address(sequencer), address(lerpFactory), 1 days);
 
         // Give admin to this contract 
-        giveAuthAccess(address(lerpFactory), address(this));
+        address(lerpFactory).setWard(address(this), 1);
 
         // Setup a dummy lerp to track the timestamps
         uint256 start = block.timestamp;
         uint256 end = start + 10 days;
-        address lerp = lerpFactory.newLerp("A TEST", address(vat), "Line", start, start, end, end - start);
-        giveAuthAccess(address(vat), lerp);
+        address lerp = lerpFactory.newLerp("A TEST", address(mcd.vat()), "Line", start, start, end, end - start);
+        mcd.vat().setWard(lerp, 1);
     }
 
     function test_lerp() public {
-        assertTrue(vat.Line() != block.timestamp);      // Randomly this could be false, but seems practically impossible
+        assertTrue(mcd.vat().Line() != block.timestamp);      // Randomly this could be false, but seems practically impossible
         
         // Initially should be able to work as the expiry is way in the past
         (bool canWork, bytes memory args) = lerpJob.workable(NET_A);
         assertTrue(canWork, "Should be able to work");
         lerpJob.work(NET_A, args);
-        assertEq(vat.Line(), block.timestamp);
+        assertEq(mcd.vat().Line(), block.timestamp);
 
         // Cannot call again
         (canWork, args) = lerpJob.workable(NET_A);
         assertTrue(!canWork, "Should not be able to work");
 
         // Fast forward by 23 hours -- still can't call
-        hevm.warp(block.timestamp + 23 hours);
+        GodMode.vm().warp(block.timestamp + 23 hours);
         (canWork, args) = lerpJob.workable(NET_A);
         assertTrue(!canWork, "Should not be able to work");
 
         // Fast forward by 1 hours -- we can call again
-        hevm.warp(block.timestamp + 1 hours);
+        GodMode.vm().warp(block.timestamp + 1 hours);
         (canWork, args) = lerpJob.workable(NET_A);
         assertTrue(canWork, "Should be able to work");
         lerpJob.work(NET_A, args);
-        assertEq(vat.Line(), block.timestamp);
+        assertEq(mcd.vat().Line(), block.timestamp);
     }
 
 }
