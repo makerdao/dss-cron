@@ -58,9 +58,31 @@ contract ClipperMomJobTest is DssCronBaseTest {
         
         // Should be able to work and target the ETH-A clipper
         // Workable triggers the actual clipperMom.tripBreaker()
+        assertEq(mcd.wethAClip().stopped(), 0);
         (bool canWork, bytes memory args) = clipperMomJob.workable(NET_A);
         assertTrue(canWork);
         assertEq(abi.decode(args, (address)), address(mcd.wethAClip()));
+        assertEq(mcd.wethAClip().stopped(), 2);
+    }
+
+    function test_break_work() public {
+        // Place a bad oracle price in the OSM
+        uint256 tolerance = clipperMom.tolerance(address(mcd.wethAClip()));
+        bytes32 _cur = GodMode.vm().load(
+            address(mcd.wethPip()),
+            bytes32(uint256(3))
+        );
+        uint256 cur = uint256(_cur) & type(uint128).max;
+        uint256 nxt = cur * tolerance / RAY - 1;
+        GodMode.vm().store(
+            address(mcd.wethPip()),
+            bytes32(uint256(4)),
+            bytes32((1 << 128) | nxt)
+        );
+        
+        // Test the actual work function
+        assertEq(mcd.wethAClip().stopped(), 0);
+        clipperMomJob.work(NET_A, abi.encode(address(mcd.wethAClip())));
         assertEq(mcd.wethAClip().stopped(), 2);
     }
 
