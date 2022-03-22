@@ -16,7 +16,7 @@
 pragma solidity 0.8.9;
 
 import "./DssCronBase.t.sol";
-import {ClipperMomAbstract} from "dss-interfaces/Interfaces.sol";
+import {ClipperMomAbstract,ClipAbstract} from "dss-interfaces/Interfaces.sol";
 
 import {ClipperMomJob} from "../ClipperMomJob.sol";
 
@@ -35,6 +35,21 @@ contract ClipperMomJobTest is DssCronBaseTest {
         clipperMomJob = new ClipperMomJob(address(sequencer), address(ilkRegistry), address(clipperMom));
     }
 
+    function set_bad_price(address clip, address pip) internal {
+        uint256 tolerance = clipperMom.tolerance(clip);
+        bytes32 _cur = GodMode.vm().load(
+            address(pip),
+            bytes32(uint256(3))
+        );
+        uint256 cur = uint256(_cur) & type(uint128).max;
+        uint256 nxt = cur * tolerance / RAY - 1;
+        GodMode.vm().store(
+            address(pip),
+            bytes32(uint256(4)),
+            bytes32((1 << 128) | nxt)
+        );
+    }
+
     function test_no_break() public {
         // By default there should be no clipper that is triggerable except in the very rare circumstance of oracle attack
         (bool canWork,) = clipperMomJob.workable(NET_A);
@@ -43,18 +58,7 @@ contract ClipperMomJobTest is DssCronBaseTest {
 
     function test_break() public {
         // Place a bad oracle price in the OSM
-        uint256 tolerance = clipperMom.tolerance(address(mcd.wethAClip()));
-        bytes32 _cur = GodMode.vm().load(
-            address(mcd.wethPip()),
-            bytes32(uint256(3))
-        );
-        uint256 cur = uint256(_cur) & type(uint128).max;
-        uint256 nxt = cur * tolerance / RAY - 1;
-        GodMode.vm().store(
-            address(mcd.wethPip()),
-            bytes32(uint256(4)),
-            bytes32((1 << 128) | nxt)
-        );
+        set_bad_price(address(mcd.wethAClip()), address(mcd.wethPip()));
         
         // Should be able to work and target the ETH-A clipper
         // Workable triggers the actual clipperMom.tripBreaker()
@@ -67,23 +71,42 @@ contract ClipperMomJobTest is DssCronBaseTest {
 
     function test_break_work() public {
         // Place a bad oracle price in the OSM
-        uint256 tolerance = clipperMom.tolerance(address(mcd.wethAClip()));
-        bytes32 _cur = GodMode.vm().load(
-            address(mcd.wethPip()),
-            bytes32(uint256(3))
-        );
-        uint256 cur = uint256(_cur) & type(uint128).max;
-        uint256 nxt = cur * tolerance / RAY - 1;
-        GodMode.vm().store(
-            address(mcd.wethPip()),
-            bytes32(uint256(4)),
-            bytes32((1 << 128) | nxt)
-        );
+        set_bad_price(address(mcd.wethAClip()), address(mcd.wethPip()));
         
         // Test the actual work function
         assertEq(mcd.wethAClip().stopped(), 0);
         clipperMomJob.work(NET_A, abi.encode(address(mcd.wethAClip())));
         assertEq(mcd.wethAClip().stopped(), 2);
+    }
+
+    function test_break_multiple() public {
+        // Place a bad oracle price in the OSM
+        set_bad_price(address(mcd.wethAClip()), address(mcd.wethPip()));
+        
+        // Should be able to trigger 3 clips
+        ClipAbstract wethBClip = ClipAbstract(mcd.chainlog().getAddress("MCD_CLIP_ETH_B"));
+        ClipAbstract wethCClip = ClipAbstract(mcd.chainlog().getAddress("MCD_CLIP_ETH_C"));
+
+        // ETH-A
+        assertEq(mcd.wethAClip().stopped(), 0);
+        (bool canWork, bytes memory args) = clipperMomJob.workable(NET_A);
+        assertTrue(canWork);
+        assertEq(abi.decode(args, (address)), address(mcd.wethAClip()));
+        assertEq(mcd.wethAClip().stopped(), 2);
+
+        // ETH-B
+        assertEq(wethBClip.stopped(), 0);
+        (canWork, args) = clipperMomJob.workable(NET_A);
+        assertTrue(canWork);
+        assertEq(abi.decode(args, (address)), address(wethBClip));
+        assertEq(wethBClip.stopped(), 2);
+
+        // ETH-C
+        assertEq(wethCClip.stopped(), 0);
+        (canWork, args) = clipperMomJob.workable(NET_A);
+        assertTrue(canWork);
+        assertEq(abi.decode(args, (address)), address(wethCClip));
+        assertEq(wethCClip.stopped(), 2);
     }
 
 }
