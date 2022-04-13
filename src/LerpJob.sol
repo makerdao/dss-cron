@@ -13,11 +13,12 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity 0.8.9;
+pragma solidity 0.8.13;
 
 import {TimedJob} from "./base/TimedJob.sol";
 
 interface LerpFactoryLike {
+    function count() external view returns (uint256);
     function tall() external;
 }
 
@@ -28,6 +29,10 @@ contract LerpJob is TimedJob {
 
     constructor(address _sequencer, address _lerpFactory, uint256 _duration) TimedJob(_sequencer, _duration) {
         lerpFactory = LerpFactoryLike(_lerpFactory);
+    }
+
+    function shouldUpdate() internal override view returns (bool) {
+        return lerpFactory.count() > 0;
     }
 
     function update() internal override {

@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity 0.8.9;
+pragma solidity 0.8.13;
 
 import {IJob} from "./interfaces/IJob.sol";
 
@@ -72,6 +72,9 @@ contract AaveDirectJob is IJob {
     error NotMaster(bytes32 network);
     error OutsideThreshold();
 
+    // --- Events ---
+    event Work(bytes32 indexed network);
+
     constructor(address _sequencer, address _direct, uint256 _threshold) {
         sequencer = SequencerLike(_sequencer);
         direct = DirectLike(_direct);
@@ -114,6 +117,8 @@ contract AaveDirectJob is IJob {
         if (!isOutsideThreshold()) revert OutsideThreshold();
 
         direct.exec();
+
+        emit Work(network);
     }
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {

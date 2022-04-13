@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity 0.8.9;
+pragma solidity 0.8.13;
 
 import "./DssCronBase.t.sol";
 import {LerpFactoryAbstract} from "dss-interfaces/Interfaces.sol";
@@ -37,14 +37,18 @@ contract LerpJobTest is DssCronBaseTest {
         // Give admin to this contract 
         address(lerpFactory).setWard(address(this), 1);
 
+        // Clear out all existing lerps by moving ahead 50 years
+        GodMode.vm().warp(block.timestamp + 365 days * 50);
+        lerpFactory.tall();
+    }
+
+    function test_lerp() public {
         // Setup a dummy lerp to track the timestamps
         uint256 start = block.timestamp;
         uint256 end = start + 10 days;
         address lerp = lerpFactory.newLerp("A TEST", address(mcd.vat()), "Line", start, start, end, end - start);
         mcd.vat().setWard(lerp, 1);
-    }
 
-    function test_lerp() public {
         assertTrue(mcd.vat().Line() != block.timestamp);      // Randomly this could be false, but seems practically impossible
         
         // Initially should be able to work as the expiry is way in the past
@@ -68,6 +72,12 @@ contract LerpJobTest is DssCronBaseTest {
         assertTrue(canWork, "Should be able to work");
         lerpJob.work(NET_A, args);
         assertEq(mcd.vat().Line(), block.timestamp);
+    }
+
+    function test_no_lerp() public {
+        // Should not trigger when there is no lerp
+        (bool canWork,) = lerpJob.workable(NET_A);
+        assertTrue(!canWork, "should not be able to work");
     }
 
 }

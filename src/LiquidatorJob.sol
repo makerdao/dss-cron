@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity 0.8.9;
+pragma solidity 0.8.13;
 
 import {IJob} from "./interfaces/IJob.sol";
 
@@ -87,6 +87,9 @@ contract LiquidatorJob is IJob {
     error NotMaster(bytes32 network);
     error InvalidClipper(address clip);
 
+    // --- Events ---
+    event Work(bytes32 indexed network);
+
     constructor(address _sequencer, address _daiJoin, address _ilkRegistry, address _profitTarget, address _uniswapV3Callee, uint256 _minProfitBPS) {
         sequencer = SequencerLike(_sequencer);
         daiJoin = DaiJoinLike(_daiJoin);
@@ -123,6 +126,8 @@ contract LiquidatorJob is IJob {
         // Dump all extra DAI into the profit target
         daiJoin.join(address(this), dai.balanceOf(address(this)));
         vat.move(address(this), profitTarget, vat.dai(address(this)));
+
+        emit Work(network);
     }
 
     function workable(bytes32 network) external override returns (bool, bytes memory) {

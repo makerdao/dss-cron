@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity 0.8.9;
+pragma solidity 0.8.13;
 
 import {IJob} from "./interfaces/IJob.sol";
 
@@ -49,6 +49,9 @@ contract ClipperMomJob is IJob {
     // --- Errors ---
     error NotMaster(bytes32 network);
 
+    // --- Events ---
+    event Work(bytes32 indexed network, address indexed clip);
+
     constructor(address _sequencer, address _ilkRegistry, address _clipperMom) {
         sequencer = SequencerLike(_sequencer);
         ilkRegistry = IlkRegistryLike(_ilkRegistry);
@@ -58,7 +61,10 @@ contract ClipperMomJob is IJob {
     function work(bytes32 network, bytes calldata args) external override {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
 
-        clipperMom.tripBreaker(abi.decode(args, (address)));
+        address clip = abi.decode(args, (address));
+        clipperMom.tripBreaker(clip);
+
+        emit Work(network, clip);
     }
 
     function workable(bytes32 network) external override returns (bool, bytes memory) {
