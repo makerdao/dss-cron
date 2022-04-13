@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity 0.8.9;
+pragma solidity 0.8.13;
 
 import "./DssCronBase.t.sol";
 import {LiquidatorJob} from "../LiquidatorJob.sol";
@@ -42,7 +42,7 @@ contract LiquidatorTest is DssCronBaseTest {
 
     function trigger_next_liquidation_job(bytes32 network, LiquidatorJob liquidator) internal {
         // TODO dont actually trigger liquidation here
-        (bool canWork, bytes memory args) = liquidator.workable(network);
+        (bool canWork,) = liquidator.workable(network);
         assertTrue(canWork, "Expecting to be able to execute.");
         // No need to actually execute as the detection of a successful job will execute
         //(bool success,) = target.call(args);

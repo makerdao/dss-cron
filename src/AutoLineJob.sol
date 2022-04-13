@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity 0.8.9;
+pragma solidity 0.8.13;
 
 import {IJob} from "./interfaces/IJob.sol";
 
@@ -51,6 +51,9 @@ contract AutoLineJob is IJob {
     error NotMaster(bytes32 network);
     error OutsideThreshold(uint256 line, uint256 nextLine);
 
+    // --- Events ---
+    event Work(bytes32 indexed network, bytes32 indexed ilk);
+
     constructor(address _sequencer, address _ilkRegistry, address _autoline, uint256 _thi, uint256 _tlo) {
         sequencer = SequencerLike(_sequencer);
         ilkRegistry = IlkRegistryLike(_ilkRegistry);
@@ -76,6 +79,8 @@ contract AutoLineJob is IJob {
             nextLine < line + gap * thi / BPS &&
             nextLine + gap * tlo / BPS > line
         ) revert OutsideThreshold(line, nextLine);
+
+        emit Work(network, ilk);
     }
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {

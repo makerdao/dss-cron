@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-pragma solidity 0.8.9;
+pragma solidity 0.8.13;
 
 import {IJob} from "../interfaces/IJob.sol";
 
@@ -33,6 +33,9 @@ abstract contract TimedJob is IJob {
     error NotMaster(bytes32 network);
     error TimerNotElapsed(uint256 currentTime, uint256 expiry);
 
+    // --- Events ---
+    event Work(bytes32 indexed network);
+
     constructor(address _sequencer, uint256 _maxDuration) {
         sequencer = SequencerLike(_sequencer);
         maxDuration = _maxDuration;
@@ -45,15 +48,19 @@ abstract contract TimedJob is IJob {
         
         last = block.timestamp;
         update();
+
+        emit Work(network);
     }
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
         if (block.timestamp < last + maxDuration) return (false, bytes("Timer hasn't elapsed"));
+        if (!shouldUpdate()) return (false, bytes("shouldUpdate is false"));
         
         return (true, "");
     }
 
+    function shouldUpdate() virtual internal view returns (bool);
     function update() virtual internal;
 
 }
