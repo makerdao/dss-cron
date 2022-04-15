@@ -32,6 +32,7 @@ abstract contract TimedJob is IJob {
     // --- Errors ---
     error NotMaster(bytes32 network);
     error TimerNotElapsed(uint256 currentTime, uint256 expiry);
+    error ShouldUpdateIsFalse();
 
     // --- Events ---
     event Work(bytes32 indexed network);
@@ -45,6 +46,7 @@ abstract contract TimedJob is IJob {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
         uint256 expiry = last + maxDuration;
         if (block.timestamp < expiry) revert TimerNotElapsed(block.timestamp, expiry);
+        if (!shouldUpdate()) revert ShouldUpdateIsFalse();
         
         last = block.timestamp;
         update();

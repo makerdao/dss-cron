@@ -13,6 +13,6 @@ Sequencer: [0x9566eB72e47E3E20643C0b1dfbEe04Da5c7E4732](https://etherscan.io/add
 ## Active Jobs
 
 AutoLineJob [thi=1000 bps, tlo=5000 bps]: [0x8099D3E7B6f63040FBd25c7B1541b34055e95e19](https://etherscan.io/address/0x8099D3E7B6f63040FBd25c7B1541b34055e95e19#code)  
-LerpJob [maxDuration=1 day]: [0x6c254A698a4493226C47C8Fc79A1a6e4df68504b](https://etherscan.io/address/0x6c254A698a4493226C47C8Fc79A1a6e4df68504b#code)  
+LerpJob [maxDuration=1 day]: [0x68c843AfBE4b11a6d0700B516dd599f8587723bc](https://etherscan.io/address/0x68c843AfBE4b11a6d0700B516dd599f8587723bc#code)  
 AaveDirectJob [threshold=50 bps]: [0x95416069ad8756f123Ad48fDB6fede7179b9Ecae](https://etherscan.io/address/0x95416069ad8756f123Ad48fDB6fede7179b9Ecae#code)  
 ClipperMomJob: [0x81fAa76b5f7D6211AcBD43967387561e5A9803bD](https://etherscan.io/address/0x81fAa76b5f7D6211AcBD43967387561e5A9803bD#code)  
