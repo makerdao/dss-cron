@@ -20,7 +20,7 @@ import {LerpFactoryAbstract} from "dss-interfaces/Interfaces.sol";
 
 import {LerpJob} from "../LerpJob.sol";
 
-contract LerpJobTest is DssCronBaseTest {
+contract LerpJobIntegrationTest is DssCronBaseTest {
 
     using GodMode for *;
 

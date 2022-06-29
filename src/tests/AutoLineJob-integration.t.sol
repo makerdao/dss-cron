@@ -20,7 +20,7 @@ import {DssAutoLineAbstract} from "dss-interfaces/Interfaces.sol";
 
 import {AutoLineJob} from "../AutoLineJob.sol";
 
-contract AutoLineJobTest is DssCronBaseTest {
+contract AutoLineJobIntegrationTest is DssCronBaseTest {
 
     using GodMode for *;
 

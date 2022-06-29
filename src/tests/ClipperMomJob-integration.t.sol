@@ -20,7 +20,7 @@ import {ClipperMomAbstract,ClipAbstract} from "dss-interfaces/Interfaces.sol";
 
 import {ClipperMomJob} from "../ClipperMomJob.sol";
 
-contract ClipperMomJobTest is DssCronBaseTest {
+contract ClipperMomJobIntegrationTest is DssCronBaseTest {
 
     using GodMode for *;
 
