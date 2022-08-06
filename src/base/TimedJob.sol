@@ -17,8 +17,16 @@ pragma solidity 0.8.13;
 
 import {IJob} from "../interfaces/IJob.sol";
 
+import 'forge-std/console2.sol';
+
 interface SequencerLike {
+    function wards(address) external returns (uint256);
+    function rely(address usr) external;
+    function deny(address usr) external;
     function isMaster(bytes32 network) external view returns (bool);
+    function addJob(address job) external;
+    function removeJob(address job) external;
+    function hasJob(address job) external view returns (bool);
 }
 
 /// @title A job that executes at a fixed interval
@@ -58,7 +66,7 @@ abstract contract TimedJob is IJob {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
         if (block.timestamp < last + maxDuration) return (false, bytes("Timer hasn't elapsed"));
         if (!shouldUpdate()) return (false, bytes("shouldUpdate is false"));
-        
+
         return (true, "");
     }
 
