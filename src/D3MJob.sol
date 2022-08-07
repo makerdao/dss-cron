@@ -44,21 +44,26 @@ contract D3MJob is IJob {
     IlkRegistryLike public immutable ilkRegistry;
     D3MHubLike public immutable hub;
     VatLike public immutable vat;
-    uint256 public immutable threshold;         // Threshold deviation to kick off exec [BPS]
+    uint256 public immutable threshold;             // Threshold deviation to kick off exec [BPS]
+    uint256 public immutable ttl;                   // Cooldown before you can call exec again [seconds]
+
+    mapping (bytes32 => uint256) public expiry;     // Timestamp of when exec is allowed again
 
     // --- Errors ---
     error NotMaster(bytes32 network);
+    error Cooldown(bytes32 ilk, uint256 expiry);
     error ShouldNotTrigger(bytes32 ilk, uint256 part, uint256 nart);
 
     // --- Events ---
     event Work(bytes32 indexed network);
 
-    constructor(address _sequencer, address _ilkRegistry, address _hub, uint256 _threshold) {
+    constructor(address _sequencer, address _ilkRegistry, address _hub, uint256 _threshold, uint256 _ttl) {
         sequencer = SequencerLike(_sequencer);
         ilkRegistry = IlkRegistryLike(_ilkRegistry);
         hub = D3MHubLike(_hub);
         vat = hub.vat();
         threshold = _threshold;
+        ttl = _ttl;
     }
 
     function shouldTrigger(uint256 part, uint256 nart) internal view returns (bool) {
@@ -76,6 +81,8 @@ contract D3MJob is IJob {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
 
         bytes32 ilk = abi.decode(args, (bytes32));
+        uint256 _expiry = expiry[ilk];
+        if (block.timestamp < _expiry) revert Cooldown(ilk, _expiry);
         address pool = hub.pool(ilk);
         (, uint256 part) = vat.urns(ilk, pool);
 
@@ -83,6 +90,8 @@ contract D3MJob is IJob {
 
         (, uint256 nart) = vat.urns(ilk, pool);
         if (!shouldTrigger(part, nart)) revert ShouldNotTrigger(ilk, part, nart);
+        
+        expiry[ilk] = block.timestamp + ttl;
 
         emit Work(network);
     }
@@ -101,6 +110,7 @@ contract D3MJob is IJob {
             (, uint256 part) = vat.urns(ilk, pool);
             try hub.exec(ilk) {
                 (, uint256 nart) = vat.urns(ilk, pool);
+                if (block.timestamp < expiry[ilk]) continue;
                 if (!shouldTrigger(part, nart)) continue;
 
                 // Found a valid execution
