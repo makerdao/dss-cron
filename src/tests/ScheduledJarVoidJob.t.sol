@@ -4,11 +4,12 @@ pragma solidity 0.8.13;
 
 import "./DssCronBase.t.sol";
 
-import {RwaJarJobFactory} from "../RwaJarJobFactory.sol";
+import {ScheduledJarVoidJob} from "../ScheduledJarVoidJob.sol";
 
 import {RwaRegistry} from "mip21-rwa-registry/RwaRegistry.sol";
 
 import "dss-interfaces/Interfaces.sol";
+
 
 interface JoinFabLike {
     function vat() external view returns (address);
@@ -67,9 +68,10 @@ interface RwaLiquidationLike {
     function good(bytes32) external view;
 }
 
-
-contract RwaJarJobFactoryTest is DssCronBaseTest {
+contract ScheduledJarVoidJobTest is DssCronBaseTest {
     using GodMode for *;
+    using stdStorage for StdStorage;
+
 
     bytes32 constant RWAA = "RWA-A";
     bytes32 constant RWAB = "RWA-B";
@@ -94,88 +96,27 @@ contract RwaJarJobFactoryTest is DssCronBaseTest {
     RwaJarLike internal rwaJar;
     RwaRegistry internal rwaRegistry;
 
-    RwaJarJobFactory public rwaJarJob;
+    uint256 testDaiAmount = 10_000 * WAD;
 
-    event CreateJarJob(address indexed jar);
-    event RemoveJarJob(address indexed jar);
+    ScheduledJarVoidJob public jarJob;
 
+    event Toss(address indexed usr, uint256 wad);
     function setUpSub() virtual override internal {
         createRwaRegistryAndComponents(0);
 
-        // execute the JarJobFactory once every 15 days
-        rwaJarJob = new RwaJarJobFactory(
+        // set up a new sceheduledJar job
+
+        jarJob = new ScheduledJarVoidJob(
             address(sequencer),
-            address(rwaRegistry),
+            rwaJars[RWAA],
             15 days
         );
-        sequencer.rely(address(rwaJarJob));
+        sequencer.rely(address(jarJob));
 
         // Clear out all existing factory job by moving ahead 1 years
         GodMode.vm().warp(block.timestamp + 365 days * 1);
     }
 
-    function testFactoryManagesNewJarJobs() public {
-        // on fresh rwa implementaion deploys a new jar job
-        (bool canWork, bytes memory args) = rwaJarJob.workable(NET_A);
-        assertTrue(canWork, "Should be able to work");
-
-        // set up for event emmission test
-        vm.expectEmit(true, false, false, false);
-        emit CreateJarJob(address(rwaJars[RWAA]));
-
-        // complete any required job
-        rwaJarJob.work(NET_A, args);
-
-        assertTrue(sequencer.numJobs() == 1, "Should have 1 job");
-        (canWork, args) = rwaJarJob.workable(NET_A);
-        assertTrue(!canWork, "Should not be able to work");
-
-        // deploy another collateral - RWAB
-        _addAnotherJar(1);
-
-        assertTrue(rwaRegistry.count() == 2, "Should have 2 jars");
-
-        // check jobs for next run every 15 days - is a new job deployed?
-        GodMode.vm().warp(block.timestamp + 15 days * 1);
-
-        (canWork, args) = rwaJarJob.workable(NET_A);
-        assertTrue(canWork, "Should be able to work");
-
-        // set up for event emmission test
-        vm.expectEmit(true, false, false, false);
-        emit CreateJarJob(address(rwaJars[RWAB]));
-
-        // complete any required job
-        rwaJarJob.work(NET_A, args);
-        assertTrue(sequencer.numJobs() == 2, "Should have 2 jobs");
-
-        // finalize job 
-        // Make a jar not "ACTIVE" to see if JobFactory removes the Job
-        rwaRegistry.finalize(RWAB); 
-        // For next job run 
-        GodMode.vm().warp(block.timestamp + 15 days * 1);
-        assertTrue(sequencer.numJobs() == 2, "Should have 2 jobs");
-
-        (canWork, args) = rwaJarJob.workable(NET_A);
-        assertTrue(canWork, "Should be able to work");
-
-        rwaJarJob.work(NET_A, args);
-        assertTrue(sequencer.numJobs() == 1, "Should have 1 jobs");
-
-        rwaRegistry.finalize(RWAA); 
-
-        GodMode.vm().warp(block.timestamp + 15 days * 1);
-        
-        (canWork, args) = rwaJarJob.workable(NET_A);
-        assertTrue(canWork, "Should be able to work");
-
-        // set up for event emmission test
-        vm.expectEmit(true, false, false, false);
-        emit RemoveJarJob(address(rwaJars[RWAA]));
-
-        rwaJarJob.work(NET_A, args);
-        assertTrue(sequencer.numJobs() == 0, "Should have 0 jobs");
-    }
 
     function createRwaRegistryAndComponents(uint256 ilkIndex) internal {
         // authorize this contract to create collateral and tokens
@@ -198,16 +139,6 @@ contract RwaJarJobFactoryTest is DssCronBaseTest {
         addrs[2] = deployJar(rwaIlks[ilkIndex]);
         rwaRegistry.add(rwaIlks[ilkIndex], _names, addrs, variants);
     }
-
-    function _addAnotherJar(uint256 ilkIndex) internal {
-        // create RWA component variants for registry
-        address[] memory addrs = new address[](3);
-        addrs[0] = deployJar(rwaIlks[ilkIndex]);
-        addrs[1] = mcd.chainlog().getAddress("MIP21_LIQUIDATION_ORACLE");
-        addrs[2] = deployJar(rwaIlks[ilkIndex]);
-        rwaRegistry.add(rwaIlks[ilkIndex], _names, addrs, _createVariants());
-    }
-
 
     function addIlk(uint i) internal {
         mcd.vat().init(rwaIlks[i]);
@@ -251,23 +182,66 @@ contract RwaJarJobFactoryTest is DssCronBaseTest {
         return temp;
     }
 
-    function testDeployedRwaTokens() internal {
-        assertEq(RwaTokenLike(rwaTokens[RWAA]).symbol(), "RWAA");
+    function testJarVoidedWhenAboveThreshold() public {
+        // create some DAI and send to the Jar
+        _createFakeDai(address(this), testDaiAmount);
+        mcd.dai().transfer(rwaJars[RWAA],testDaiAmount);
+
+        // check that the Jar has the correct balance and check Dai supply before   
+        assertEq(mcd.dai().balanceOf(address(jarJob.rwaJar())), testDaiAmount);
+        uint256 daiSupplyBefore = mcd.dai().totalSupply();
+
+        // check whether the job needs to run     
+        (bool canWork, bytes memory args) = jarJob.workable(NET_A);
+        assertTrue(canWork, "Should be able to work");
+
+        // set up for event emmission test
+        vm.expectEmit(true, false, false, false);
+        emit Toss(rwaJars[RWAA], testDaiAmount);
+
+        // run the job
+        jarJob.work(NET_A, args);
+
+        uint256 daiSupplyAfter = mcd.dai().totalSupply();
+        uint256 expectedDaiSupply = daiSupplyBefore - testDaiAmount;
+
+        assertEq(mcd.dai().balanceOf(address(jarJob.rwaJar())), 0, "Balance of RwaJar is not zero");
+        assertEq(daiSupplyAfter, expectedDaiSupply, "Total supply of Dai did not change after burn");
+
+        // for next cycle
+        // check that the job does not execute if the jar has a balance below the threshold
+
+        // move forward 15 days
+        GodMode.vm().warp(block.timestamp + 15 days * 1);
+
+        // lets add DAI in the jar in the amount of the threshold
+        _createFakeDai(address(this), jarJob.THRESHOLD());
+        mcd.dai().transfer(rwaJars[RWAA],jarJob.THRESHOLD());
+        assertEq(mcd.dai().balanceOf(address(jarJob.rwaJar())), jarJob.THRESHOLD(), "Balance of RwaJar is not zero");
+        
+        (canWork, args) = jarJob.workable(NET_A);
+        assertTrue(!canWork, "Should not be able to work");
+
     }
 
-    function testRegistryExists() public {
-        assertEq(rwaRegistry.listSupportedComponents().length, 5);
-        assertEq(rwaRegistry.count(), 1);
-
-        // ilks are created
-        assertEq(rwaRegistry.ilks(0), RWAA);
     
-        // ilks RWAA is deployed with an urn and jar
-        bytes32[] memory components = rwaRegistry.listComponentNamesOf(RWAA);
-        assertEq(components.length, 3);
-        assertEq(components[0], _names[0 /*URN*/]);
-        assertEq(components[1], _names[1 /*LIQUIDATION_ORACLE*/]);
-        assertEq(components[2], _names[2 /*JAR*/]);
+    function _createFakeDai(address usr, uint256 wad) private {
+        // create dai in the test contract 
+   
+        stdstore.target(address(mcd.vat())).sig("dai(address)").with_key(address(this)).checked_write(_rad(wad));
+        stdstore
+            .target(address(mcd.vat()))
+            .sig("can(address,address)")
+            .with_key(address(this))
+            .with_key(address(mcd.daiJoin()))
+            .checked_write(uint256(1));
+        // // Converts the minted Dai into ERC-20 Dai and sends it to `usr`.
+        mcd.daiJoin().exit(usr, wad);
+        assertEq(mcd.dai().balanceOf(usr), wad, "Balance of user is not equal to wad");
     }
-}
 
+    function _rad(uint256 wad) internal pure returns (uint256) {
+        return (wad * RAY);
+    }
+    
+}

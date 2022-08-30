@@ -5,6 +5,8 @@ libs = ['lib']
 # optimizer = false
 solc_version = '0.8.13'
 # yul = false
+fs_permissions = [{ access = "read", path = "./out"}]
+
 
 [profile.0_6_x]
 # `src` must be different fot it to work.

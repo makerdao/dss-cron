@@ -3,10 +3,10 @@
 	url = https://github.com/makerdao/dss-test
 [submodule "lib-0_6_x/mip21-toolkit"]
 	path = lib-0_6_x/mip21-toolkit
-	url = https://github.com/clio-finance/mip21-toolkit
+	url = https://github.com/makerdao/mip21-toolkit
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 [submodule "lib/mip21-rwa-registry"]
 	path = lib/mip21-rwa-registry
-	url = https://github.com/clio-finance/mip21-rwa-registry
+	url = https://github.com/lib/mip21-rwa-registry
