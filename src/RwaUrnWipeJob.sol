@@ -36,7 +36,7 @@ interface RWARegistryLike {
 
     function ilkToDeal(bytes32 ilk) external view returns (DealStatus);
     function list() external view returns (bytes32[] memory);
-    function getComponent(bytes32 ilk_, bytes32 name_) external view returns (address addr);
+    function getComponent(bytes32 ilk, bytes32 name) external view returns (address addr, uint88 variant);
 }
 
 interface RwaUrnLike {
@@ -60,7 +60,8 @@ contract RwaUrnWipeJob is IJob {
     // --- Errors ---
     error NotMaster(bytes32 network);
     error DealNotActive(bytes32 ilk);
-    error BalanceBelowThreshold(uint256 balance, uint256 threshold);
+    error UnexistingComponent(bytes32 ilk);
+    error BalanceBelowThreshold(bytes32 ilk, uint256 balance);
 
     // --- Events ---
     event Work(bytes32 indexed network, bytes32 indexed ilk);
@@ -74,21 +75,26 @@ contract RwaUrnWipeJob is IJob {
 
     function work(bytes32 network, bytes calldata args) external override {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
-        
+
         bytes32 ilk = abi.decode(args, (bytes32));
 
         RWARegistryLike.DealStatus status = rwaRegistry.ilkToDeal(ilk);
-        
+
         // If the deal is not active, skip it.
         if (status != RWARegistryLike.DealStatus.ACTIVE) {
             revert DealNotActive(ilk);
         }
 
-        address urn = rwaRegistry.getComponent(ilk, COMPONENT);
+        (address urn, ) = rwaRegistry.getComponent(ilk, COMPONENT);
 
-        // if its balance is below the threshold skip it
+        // If the component is invalid, skip it.
+        if (urn == address(0)) {
+            revert UnexistingComponent(ilk);
+        }
+
+        // If its balance is below the threshold, skip it.
         if (dai.balanceOf(urn) < threshold) {
-            revert BalanceBelowThreshold(dai.balanceOf(urn), threshold);
+            revert BalanceBelowThreshold(ilk, dai.balanceOf(urn));
         }
 
         RwaUrnLike(urn).wipe(dai.balanceOf(urn));
@@ -98,24 +104,22 @@ contract RwaUrnWipeJob is IJob {
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
-        
+
         bytes32[] memory ilks = rwaRegistry.list();
 
         for (uint256 i = 0; i < ilks.length; i++) {
             bytes32 ilk = ilks[i];
 
-            // we are going to check the jar for the ilk if above freshold we have work!
-            RWARegistryLike.DealStatus status = rwaRegistry.ilkToDeal(ilks[i]);
+            // We check if the jar for the ilk if above the predefined threshold.
+            RWARegistryLike.DealStatus status = rwaRegistry.ilkToDeal(ilk);
             if (status == RWARegistryLike.DealStatus.ACTIVE) {
-                try rwaRegistry.getComponent(ilks[i], COMPONENT) returns (address addr) {
+                try rwaRegistry.getComponent(ilk, COMPONENT) returns (address addr, uint88) {
                     if (addr != address(0)) {
-                        if (dai.balanceOf(addr) > threshold) {
+                        if (dai.balanceOf(addr) >= threshold) {
                             return (true, abi.encode(ilk));
                         }
                     }
-                } catch {
-                    continue;
-                }
+                } catch {}
             }
         }
         return (false, bytes("No urns above threshold"));
