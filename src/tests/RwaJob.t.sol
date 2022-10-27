@@ -22,6 +22,8 @@ import {RwaJob} from "../RwaJob.sol";
  * @dev interface for the RWARegistry
  */
 interface RWARegistryLike {
+    error ComponentDoesNotExist(bytes32 ilk, bytes32 name);
+
     function getComponent(bytes32 ilk_, bytes32 name_) external view returns (address addr, uint88 variant);
     function finalize(bytes32 ilk_) external;
 }
@@ -97,7 +99,6 @@ contract RwaJobTest is DssCronBaseTest {
 
         assertEq(mcd.dai().balanceOf(address(jar)), 0, "Balance of RwaJar is not zero");
         assertEq(daiSupplyAfter, expectedDaiSupply, "Total supply of Dai did not change after burn");
-
     }
 
     function testRwaJobReverts() public {
@@ -122,7 +123,6 @@ contract RwaJobTest is DssCronBaseTest {
         );
 
         rwaJob.work(NET_A, abi.encode(RWA009, JAR));
-
     }
 
     function testRwaUrnWipeJobEmptiesUrn() public {
@@ -162,7 +162,6 @@ contract RwaJobTest is DssCronBaseTest {
 
         assertEq(mcd.dai().balanceOf(address(urn)), 0, "Balance of RwaUrn is not zero");
         assertEq(daiSupplyAfter, expectedDaiSupply, "Total supply of Dai did not change after burn");
-
     }
 
     function testRwaUrnWipeJobReverts() public {
@@ -187,7 +186,27 @@ contract RwaJobTest is DssCronBaseTest {
         );
 
         rwaJob.work(NET_A, abi.encode(RWA009, URN));
+    }
 
+    function testInvalidComponentJobReverts() public {
+        (address urn, ) = RWARegistryLike(registryAddr).getComponent(RWA009, URN);
+        deal(address(mcd.dai()), urn, 0, true);
+        deal(address(mcd.dai()), urn, testDaiAmount, true);
+
+        bytes32 unexistingComponent = "unexistingComponent";
+        bytes32 unsupportedOracle = "liquidationOracle";
+
+        // If work is called balance will revert when balance below threshold
+
+        vm.expectRevert(
+            abi.encodeWithSelector(RWARegistryLike.ComponentDoesNotExist.selector, RWA009, unexistingComponent)
+        );
+        rwaJob.work(NET_A, abi.encode(RWA009, unexistingComponent));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(RwaJob.InvalidComponent.selector, RWA009, unsupportedOracle)
+        );
+        rwaJob.work(NET_A, abi.encode(RWA009, unsupportedOracle));
     }
 
     function _setWardsRwaRegistry() internal  {
