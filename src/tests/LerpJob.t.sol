@@ -74,8 +74,7 @@ contract LerpJobTest is DssCronBaseTest {
         assertEq(mcd.vat().Line(), block.timestamp);
     }
 
-    // This test is failing as at 7/6/2022 possibly due to the fact lerps are deployed on this fork
-    function test_no_lerp() private {
+    function test_no_lerp() public {
         // Should not trigger when there is no lerp
         (bool canWork,) = lerpJob.workable(NET_A);
         assertTrue(!canWork, "should not be able to work");
