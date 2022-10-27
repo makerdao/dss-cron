@@ -109,7 +109,7 @@ contract RwaJarVoidJob is IJob {
         for (uint256 i = 0; i < ilks.length; i++) {
             bytes32 ilk = ilks[i];
 
-            // we are going to check the jar for the ilk if above freshold we have work!
+            // We check if the jar for the ilk is above the predefined threshold.
             RWARegistryLike.DealStatus status = rwaRegistry.ilkToDeal(ilk);
             if (status == RWARegistryLike.DealStatus.ACTIVE) {
                 try rwaRegistry.getComponent(ilk, COMPONENT) returns (address addr, uint88) {
