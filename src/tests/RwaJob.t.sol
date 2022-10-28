@@ -24,7 +24,7 @@ import {RwaJob} from "../RwaJob.sol";
 interface RWARegistryLike {
     error ComponentDoesNotExist(bytes32 ilk, bytes32 name);
 
-    function getComponent(bytes32 ilk_, bytes32 name_) external view returns (address addr, uint88 variant);
+    function getComponent(bytes32 ilk_, bytes32 name_) external view returns (address addr, uint8 variant);
     function finalize(bytes32 ilk_) external;
 }
 
