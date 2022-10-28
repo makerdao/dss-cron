@@ -197,12 +197,15 @@ contract RwaJobTest is DssCronBaseTest {
         bytes32 unsupportedOracle = "liquidationOracle";
 
         // If work is called balance will revert when balance below threshold
-
         vm.expectRevert(
             abi.encodeWithSelector(RWARegistryLike.ComponentDoesNotExist.selector, RWA009, unexistingComponent)
         );
         rwaJob.work(NET_A, abi.encode(RWA009, unexistingComponent));
 
+        // This makes no practical sense, but we are forcing Dai balance in the
+        // liquidation oracle to get to the desired failure condition.
+        (address oracle, ) = RWARegistryLike(registryAddr).getComponent(RWA009, unsupportedOracle);
+        deal(address(mcd.dai()), oracle, testDaiAmount, true);
         vm.expectRevert(
             abi.encodeWithSelector(RwaJob.InvalidComponent.selector, RWA009, unsupportedOracle)
         );

@@ -88,35 +88,21 @@ contract RwaJob is IJob {
             revert DealNotActive(ilk);
         }
 
-        (address addr, uint88 variant) = rwaRegistry.getComponent(ilk, componentName);
+        (address addr, ) = rwaRegistry.getComponent(ilk, componentName);
+        uint256 balance = dai.balanceOf(addr);
+        if (balance < threshold) {
+            revert BalanceBelowThreshold(ilk, componentName, balance);
+        }
 
         if (componentName == JAR_COMPONENT) {
-            executeJarActions(ilk, addr, variant);
+            RwaJarLike(addr).void();
         } else if(componentName == URN_COMPONENT) {
-            executeUrnActions(ilk, addr, variant);
+            RwaUrnLike(addr).wipe(balance);
         } else {
             revert InvalidComponent(ilk, componentName);
         }
 
         emit Work(network, ilk, componentName);
-    }
-
-    function executeJarActions(bytes32 ilk, address jar, uint88) internal {
-        // If its balance is below the threshold, skip it.
-        if (dai.balanceOf(jar) < threshold) {
-            revert BalanceBelowThreshold(ilk, JAR_COMPONENT, dai.balanceOf(jar));
-        }
-
-        RwaJarLike(jar).void();
-    }
-
-    function executeUrnActions(bytes32 ilk, address urn, uint88) internal {
-        // If its balance is below the threshold, skip it.
-        if (dai.balanceOf(urn) < threshold) {
-            revert BalanceBelowThreshold(ilk, URN_COMPONENT, dai.balanceOf(urn));
-        }
-
-        RwaUrnLike(urn).wipe(dai.balanceOf(urn));
     }
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
