@@ -101,11 +101,11 @@ contract RwaJobTest is DssCronBaseTest {
         assertEq(daiSupplyAfter, expectedDaiSupply, "Total supply of Dai did not change after burn");
     }
 
-    function testRwaJobReverts() public {
+    function testRwaJobJarVoidReverts() public {
         (address jar, ) = RWARegistryLike(registryAddr).getComponent(RWA009, JAR);
         deal(address(mcd.dai()), jar, 0, true);
 
-        // If work is called balance will revert when balance below threshold
+        // If work is called, it will revert when balance below threshold
 
         vm.expectRevert(
             abi.encodeWithSelector(RwaJob.BalanceBelowThreshold.selector, RWA009, JAR, 0)
@@ -164,7 +164,7 @@ contract RwaJobTest is DssCronBaseTest {
         assertEq(daiSupplyAfter, expectedDaiSupply, "Total supply of Dai did not change after burn");
     }
 
-    function testRwaUrnWipeJobReverts() public {
+    function testRwaJobUrnWipeReverts() public {
         (address urn, ) = RWARegistryLike(registryAddr).getComponent(RWA009, URN);
         deal(address(mcd.dai()), urn, 0, true);
 
@@ -217,5 +217,4 @@ contract RwaJobTest is DssCronBaseTest {
             .checked_write(1);
     }
 }
-
 

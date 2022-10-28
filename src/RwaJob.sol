@@ -48,8 +48,8 @@ interface RwaUrnLike {
 }
 
 /**
- * @title Trigger void of RWA Jars that have a minimum balance threshold
- * @author David Krett <
+ * @title Trigger void of RwaJars and RwaUrns that have a minimum balance threshold.
+ * @author David Krett <david@clio.finance>
  */
 contract RwaJob is IJob {
     SequencerLike public immutable sequencer;
@@ -136,7 +136,7 @@ contract RwaJob is IJob {
                     }
                 } catch {}
 
-                // Otherwise, we check for a unr for the ilk with balance above the predefined threshold.
+                // Otherwise, we check for an urn for the ilk with balance above the predefined threshold.
                 try rwaRegistry.getComponent(ilk, URN_COMPONENT) returns (address urn, uint88) {
                     if (dai.balanceOf(urn) >= threshold) {
                         return (true, abi.encode(ilk, URN_COMPONENT));
