@@ -104,8 +104,8 @@ contract NetworkPaymentAdapter {
 
     // --- Pay the keeper treasury ---
     function topUp() external returns (uint256 daiSent) {
-        uint256 pendingDai = vest.unpaid(vestId);
         uint256 bufferSize = treasury.getBufferSize();
+        uint256 pendingDai = vest.unpaid(vestId);
         uint256 _bufferMax = bufferMax;
         uint256 _minimumPayment = minimumPayment;
 
