@@ -18,7 +18,7 @@ pragma solidity 0.8.13;
 import "./DssCronBase.t.sol";
 import {LiquidatorJob} from "../LiquidatorJob.sol";
 
-contract LiquidatorTest is DssCronBaseTest {
+contract LiquidatorIntegrationTest is DssCronBaseTest {
 
     address uniswapV3Callee;
 
