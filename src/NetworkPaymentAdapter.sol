@@ -109,7 +109,7 @@ contract NetworkPaymentAdapter {
         uint256 _bufferMax = bufferMax;
         uint256 _minimumPayment = minimumPayment;
 
-        if (bufferSize >= _bufferMax) revert BufferFull(bufferSize, _bufferMax);
+        if (bufferSize + _minimumPayment >= _bufferMax) revert BufferFull(bufferSize, _bufferMax);
         else if (pendingDai >= _minimumPayment) {
             vest.vest(vestId);
             
