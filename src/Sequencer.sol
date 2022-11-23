@@ -75,7 +75,7 @@ contract Sequencer {
     error IndexTooHigh(uint256 index, uint256 length);
     error BadIndicies(uint256 startIndex, uint256 exclEndIndex);
 
-    constructor () {
+    constructor() {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
