@@ -49,7 +49,7 @@ contract NetworkPaymentAdapter {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "Sequencer/not-authorized");
+        require(wards[msg.sender] == 1, "NetworkPaymentAdapter/not-authorized");
         _;
     }
 
@@ -72,7 +72,7 @@ contract NetworkPaymentAdapter {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
-    event TopUp(uint256 bufferSize, uint256 daiBalance, uint256 daiSent, uint256 totalSent);
+    event TopUp(uint256 bufferSize, uint256 daiBalance, uint256 daiSent);
 
     // --- Errors ---
     error InvalidFileParam(bytes32 what);
@@ -130,7 +130,7 @@ contract NetworkPaymentAdapter {
             dai.transfer(address(treasury), daiSent);
             totalSent += daiSent;
 
-            emit TopUp(bufferSize, daiBalance, daiSent, totalSent);
+            emit TopUp(bufferSize, daiBalance, daiSent);
         } else revert PendingDaiTooSmall(pendingDai, _minimumPayment);
     }
 

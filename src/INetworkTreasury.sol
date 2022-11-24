@@ -18,7 +18,7 @@ pragma solidity 0.8.13;
 interface INetworkTreasury {
 
 	/**
-	 * This should return an estimate of the total value of the buffer in DAI.
+	 * @dev This should return an estimate of the total value of the buffer in DAI.
 	 * Keeper Networks should convert non-DAI assets to DAI value via an oracle.
 	 * 
 	 * Ex) If the network bulk trades DAI for ETH then the value of the ETH sitting
