@@ -103,7 +103,10 @@ contract NetworkPaymentAdapter {
         emit File(what, data);
     }
 
-    // --- Pay the keeper treasury ---
+    /**
+     * @notice Top up the treasury with any outstanding DAI
+     * @dev Only callable from treasury. Call canTopUp() to see if this will pass.
+     */
     function topUp() external returns (uint256 daiSent) {
         if (msg.sender != address(treasury)) revert UnauthorizedSender(msg.sender);
 
@@ -132,6 +135,17 @@ contract NetworkPaymentAdapter {
 
             emit TopUp(bufferSize, daiBalance, daiSent);
         } else revert PendingDaiTooSmall(pendingDai, _minimumPayment);
+    }
+
+    /**
+     * @notice Check if we can call the topUp() function.
+     */
+    function canTopUp() external view returns (bool) {
+        uint256 bufferSize = treasury.getBufferSize();
+        uint256 pendingDai = vest.unpaid(vestId);
+        uint256 _minimumPayment = minimumPayment;
+
+        return (bufferSize + _minimumPayment < bufferMax) && (pendingDai >= _minimumPayment);
     }
 
 }
