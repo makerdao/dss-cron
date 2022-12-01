@@ -30,6 +30,11 @@ contract Sequencer {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
+    struct Window {
+        uint256 start;
+        uint256 length;
+    }
+
     struct WorkableJob {
         address job;
         bool canWork;
@@ -55,19 +60,19 @@ contract Sequencer {
 
     EnumerableSet.Bytes32Set private networks;
     EnumerableSet.AddressSet private jobs;
-    uint256 public window;
+    mapping(bytes32 => Window) public windows;
+    uint256 public totalWindowSize;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event File(bytes32 indexed what, uint256 data);
-    event AddNetwork(bytes32 indexed network);
+    event AddNetwork(bytes32 indexed network, uint256 windowSize);
     event RemoveNetwork(bytes32 indexed network);
     event AddJob(address indexed job);
     event RemoveJob(address indexed job);
 
     // --- Errors ---
-    error InvalidFileParam(bytes32 what);
+    error WindowZero(bytes32 network);
     error NetworkExists(bytes32 network);
     error NetworkDoesNotExist(bytes32 network);
     error JobExists(address job);
@@ -80,22 +85,33 @@ contract Sequencer {
         emit Rely(msg.sender);
     }
 
-    // --- Administration ---
-    function file(bytes32 what, uint256 data) external auth {
-        if (what == "window") {
-            window = data;
-        } else revert InvalidFileParam(what);
-
-        emit File(what, data);
-    }
-
     // --- Network Admin ---
-    function addNetwork(bytes32 network) external auth {
+    function refreshStarts() internal {
+        uint256 start = 0;
+        uint256 netLen = networks.length();
+        for (uint256 i = 0; i < netLen; i++) {
+            bytes32 network = networks.at(i);
+            windows[network].start = start;
+            start += windows[network].length;
+        }
+    }
+    function addNetwork(bytes32 network, uint256 windowSize) external auth {
         if (!networks.add(network)) revert NetworkExists(network);
-        emit AddNetwork(network);
+        if (windowSize == 0) revert WindowZero(network);
+        windows[network] = Window({
+            start: 0,
+            length: windowSize
+        });
+        totalWindowSize += windowSize;
+        refreshStarts();
+        emit AddNetwork(network, windowSize);
     }
     function removeNetwork(bytes32 network) external auth {
         if (!networks.remove(network)) revert NetworkDoesNotExist(network);
+        uint256 windowSize = windows[network].length;
+        delete windows[network];
+        totalWindowSize -= windowSize;
+        refreshStarts();
         emit RemoveNetwork(network);
     }
 
@@ -110,10 +126,26 @@ contract Sequencer {
     }
 
     // --- Views ---
-    function isMaster(bytes32 network) public view returns (bool) {
+    function isMaster(bytes32 network) external view returns (bool) {
         if (networks.length() == 0) return false;
 
-        return network == networks.at((block.number / window) % networks.length());
+        Window memory window = windows[network];
+        uint256 pos = block.number % totalWindowSize;
+        return window.start <= pos && pos < window.start + window.length;
+    }
+    function getMaster() external view returns (bytes32) {
+        uint256 netLen = networks.length();
+        if (networks.length() == 0) return bytes32(0);
+
+        uint256 pos = block.number % totalWindowSize;
+        for (uint256 i = 0; i < netLen; i++) {
+            bytes32 network = networks.at(i);
+            Window memory window = windows[network];
+            if (window.start <= pos && pos < window.start + window.length) {
+                return network;
+            }
+        }
+        return bytes32(0);
     }
 
     function numNetworks() external view returns (uint256) {
@@ -151,7 +183,7 @@ contract Sequencer {
         return _jobs;
     }
     function getNextJobs(bytes32 network) external returns (WorkableJob[] memory) {
-        return this.getNextJobs(network, 0, jobs.length());
+        return getNextJobs(network, 0, jobs.length());
     }
 
 }
