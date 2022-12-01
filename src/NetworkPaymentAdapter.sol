@@ -29,6 +29,7 @@ interface DaiJoinLike {
 
 interface DaiLike {
     function balanceOf(address) external view returns (uint256);
+    function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
 }
 
@@ -90,6 +91,8 @@ contract NetworkPaymentAdapter {
         daiJoin = DaiJoinLike(_daiJoin);
         dai = DaiLike(daiJoin.dai());
         vow = _vow;
+
+        dai.approve(address(daiJoin), type(uint256).max);
     }
 
     // --- Administration ---
@@ -98,7 +101,7 @@ contract NetworkPaymentAdapter {
             bufferMax = data;
         } else if (what == "minimumPayment") {
             minimumPayment = data;
-        } else revert InvalidFileParam(what);
+        } else revert("NetworkPaymentAdapter/file-unrecognized-param");
 
         emit File(what, data);
     }

@@ -28,7 +28,7 @@ contract VestMock {
     DaiMock public dai;
 
     constructor(DaiMock _dai) {
-        dai = DaiMock;
+        dai = _dai;
     }
 
     function setVest(uint256 id, uint256 amt) external {
@@ -48,19 +48,25 @@ contract VestMock {
 
 contract TreasuryMock {
 
-    NetworkPaymentAdapter public adapter;
+    DaiMock public dai;
 
-    constructor(NetworkPaymentAdapter _adapter) {
-        adapter = _adapter;
+    constructor(DaiMock _dai) {
+        dai = _dai;
     }
 
-    function topUp() external {
-        adapter.topUp();
+    function topUp(NetworkPaymentAdapter adapter) external returns (uint256) {
+        return adapter.topUp();
+    }
+
+    function getBufferSize() external view returns (uint256) {
+        return dai.balanceOf(address(this));
     }
 
 }
 
-contract NetworkPaymentAdapter is DSSTest {
+contract NetworkPaymentAdapterTest is DSSTest {
+
+    uint256 constant VEST_ID = 123;
 
     VestMock vest;
     TreasuryMock treasury;
@@ -71,17 +77,23 @@ contract NetworkPaymentAdapter is DSSTest {
 
     NetworkPaymentAdapter adapter;
 
-    function postSetup() internal virtual override {
-        vest = new VestMock();
-        treasury = new TreasuryMock();
+    function setUp() public {
         dai = new DaiMock();
         vat = new VatMock();
         daiJoin = new DaiJoinMock(address(vat), address(dai));
+        vest = new VestMock(dai);
+        treasury = new TreasuryMock(dai);
         vow = TEST_ADDRESS;
+
+        dai.rely(address(daiJoin));
+
+        vat.suck(address(this), address(this), 10_000 * RAD);
+        vat.hope(address(daiJoin));
+        daiJoin.exit(address(vest), 10_000 ether);
 
         adapter = new NetworkPaymentAdapter(
             address(vest),
-            123,
+            VEST_ID,
             address(treasury),
             address(daiJoin),
             vow
@@ -89,7 +101,65 @@ contract NetworkPaymentAdapter is DSSTest {
     }
 
     function test_auth() public {
-        checkAuth(address(adapter), address(this));
+        checkAuth(address(adapter), "NetworkPaymentAdapter");
+    }
+
+    function test_file() public {
+        checkFileUint(address(adapter), "NetworkPaymentAdapter", ["bufferMax", "minimumPayment"]);
+    }
+
+    function test_topUp() public {
+        uint256 vestAmount = 100 ether;
+        vest.setVest(VEST_ID, vestAmount);
+        adapter.file("bufferMax", 1000 ether);
+        adapter.file("minimumPayment", 100 ether);
+
+        assertTrue(adapter.canTopUp());
+        assertEq(dai.balanceOf(address(treasury)), 0);
+        assertEq(treasury.getBufferSize(), 0);
+
+        treasury.topUp(adapter);
+
+        assertTrue(!adapter.canTopUp());
+        assertEq(dai.balanceOf(address(treasury)), vestAmount);
+        assertEq(treasury.getBufferSize(), vestAmount);
+    }
+
+    function test_topUpMultiple() public {
+        uint256 vestAmount = 100 ether;
+        vest.setVest(VEST_ID, vestAmount);
+        adapter.file("bufferMax", 1000 ether);
+        adapter.file("minimumPayment", 100 ether);
+
+        treasury.topUp(adapter);
+        vest.setVest(VEST_ID, vestAmount);
+
+        assertTrue(adapter.canTopUp());
+        assertEq(dai.balanceOf(address(treasury)), vestAmount);
+        assertEq(treasury.getBufferSize(), vestAmount);
+
+        treasury.topUp(adapter);
+
+        assertEq(dai.balanceOf(address(treasury)), 2 * vestAmount);
+        assertEq(treasury.getBufferSize(), 2 * vestAmount);
+    }
+
+    function test_topUpOverMax() public {
+        uint256 vestAmount = 100 ether;
+        vest.setVest(VEST_ID, vestAmount);
+        adapter.file("bufferMax", 60 ether);
+        adapter.file("minimumPayment", 10 ether);
+
+        assertTrue(adapter.canTopUp());
+        assertEq(dai.balanceOf(address(treasury)), 0);
+        assertEq(treasury.getBufferSize(), 0);
+        assertEq(vat.dai(vow), 0);
+
+        treasury.topUp(adapter);
+
+        assertEq(dai.balanceOf(address(treasury)), 60 ether);
+        assertEq(treasury.getBufferSize(), 60 ether);
+        assertEq(vat.dai(vow), 40 * RAD);
     }
 
 }
