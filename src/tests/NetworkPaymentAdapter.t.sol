@@ -118,8 +118,9 @@ contract NetworkPaymentAdapterTest is DSSTest {
         assertEq(dai.balanceOf(address(treasury)), 0);
         assertEq(treasury.getBufferSize(), 0);
 
-        treasury.topUp(adapter);
+        uint256 daiSent = treasury.topUp(adapter);
 
+        assertEq(daiSent, vestAmount);
         assertTrue(!adapter.canTopUp());
         assertEq(dai.balanceOf(address(treasury)), vestAmount);
         assertEq(treasury.getBufferSize(), vestAmount);
@@ -138,8 +139,9 @@ contract NetworkPaymentAdapterTest is DSSTest {
         assertEq(dai.balanceOf(address(treasury)), vestAmount);
         assertEq(treasury.getBufferSize(), vestAmount);
 
-        treasury.topUp(adapter);
+        uint256 daiSent = treasury.topUp(adapter);
 
+        assertEq(daiSent, vestAmount);
         assertEq(dai.balanceOf(address(treasury)), 2 * vestAmount);
         assertEq(treasury.getBufferSize(), 2 * vestAmount);
     }
@@ -155,11 +157,34 @@ contract NetworkPaymentAdapterTest is DSSTest {
         assertEq(treasury.getBufferSize(), 0);
         assertEq(vat.dai(vow), 0);
 
-        treasury.topUp(adapter);
+        uint256 daiSent = treasury.topUp(adapter);
 
+        assertEq(daiSent, 60 ether);
         assertEq(dai.balanceOf(address(treasury)), 60 ether);
         assertEq(treasury.getBufferSize(), 60 ether);
         assertEq(vat.dai(vow), 40 * RAD);
+    }
+
+    function test_topUpBufferFull() public {
+        vest.setVest(VEST_ID, 90 ether + 1);
+        adapter.file("bufferMax", 100 ether);
+        adapter.file("minimumPayment", 10 ether);
+        treasury.topUp(adapter);
+        vest.setVest(VEST_ID, 90 ether);
+        assertTrue(!adapter.canTopUp());
+
+        vm.expectRevert(abi.encodeWithSignature("BufferFull(uint256,uint256,uint256)", 90 ether + 1, 10 ether, 100 ether));
+        treasury.topUp(adapter);
+    }
+
+    function test_topUpPendingDaiTooSmall() public {
+        vest.setVest(VEST_ID, 5 ether);
+        adapter.file("bufferMax", 100 ether);
+        adapter.file("minimumPayment", 10 ether);
+        assertTrue(!adapter.canTopUp());
+
+        vm.expectRevert(abi.encodeWithSignature("PendingDaiTooSmall(uint256,uint256)", 5 ether, 10 ether));
+        treasury.topUp(adapter);
     }
 
 }

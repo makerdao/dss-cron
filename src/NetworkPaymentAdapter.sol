@@ -78,7 +78,7 @@ contract NetworkPaymentAdapter {
     // --- Errors ---
     error InvalidFileParam(bytes32 what);
     error UnauthorizedSender(address sender);
-    error BufferFull(uint256 bufferSize, uint256 bufferMax);
+    error BufferFull(uint256 bufferSize, uint256 minimumPayment, uint256 bufferMax);
     error PendingDaiTooSmall(uint256 pendingDai, uint256 minimumPayment);
 
     constructor(address _vest, uint256 _vestId, address _treasury, address _daiJoin, address _vow) {
@@ -118,7 +118,7 @@ contract NetworkPaymentAdapter {
         uint256 _bufferMax = bufferMax;
         uint256 _minimumPayment = minimumPayment;
 
-        if (bufferSize + _minimumPayment >= _bufferMax) revert BufferFull(bufferSize, _bufferMax);
+        if (bufferSize + _minimumPayment > _bufferMax) revert BufferFull(bufferSize, _minimumPayment, _bufferMax);
         else if (pendingDai >= _minimumPayment) {
             vest.vest(vestId);
             
