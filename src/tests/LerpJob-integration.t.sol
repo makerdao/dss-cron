@@ -29,7 +29,7 @@ contract LerpJobIntegrationTest is DssCronBaseTest {
     LerpJob lerpJob;
 
     function setUpSub() virtual override internal {
-        lerpFactory = LerpFactoryAbstract(mcd.chainlog().getAddress("LERP_FAB"));
+        lerpFactory = LerpFactoryAbstract(dss.chainlog.getAddress("LERP_FAB"));
 
         // Execute all lerps once a day
         lerpJob = new LerpJob(address(sequencer), address(lerpFactory), 1 days);
@@ -46,16 +46,16 @@ contract LerpJobIntegrationTest is DssCronBaseTest {
         // Setup a dummy lerp to track the timestamps
         uint256 start = block.timestamp;
         uint256 end = start + 10 days;
-        address lerp = lerpFactory.newLerp("A TEST", address(mcd.vat()), "Line", start, start, end, end - start);
-        mcd.vat().setWard(lerp, 1);
+        address lerp = lerpFactory.newLerp("A TEST", address(dss.vat), "Line", start, start, end, end - start);
+        dss.vat.setWard(lerp, 1);
 
-        assertTrue(mcd.vat().Line() != block.timestamp);      // Randomly this could be false, but seems practically impossible
+        assertTrue(dss.vat.Line() != block.timestamp);      // Randomly this could be false, but seems practically impossible
         
         // Initially should be able to work as the expiry is way in the past
         (bool canWork, bytes memory args) = lerpJob.workable(NET_A);
         assertTrue(canWork, "Should be able to work");
         lerpJob.work(NET_A, args);
-        assertEq(mcd.vat().Line(), block.timestamp);
+        assertEq(dss.vat.Line(), block.timestamp);
 
         // Cannot call again
         (canWork, args) = lerpJob.workable(NET_A);
@@ -71,7 +71,7 @@ contract LerpJobIntegrationTest is DssCronBaseTest {
         (canWork, args) = lerpJob.workable(NET_A);
         assertTrue(canWork, "Should be able to work");
         lerpJob.work(NET_A, args);
-        assertEq(mcd.vat().Line(), block.timestamp);
+        assertEq(dss.vat.Line(), block.timestamp);
     }
 
     function test_no_lerp() public {

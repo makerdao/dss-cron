@@ -25,6 +25,8 @@ import {LerpJob} from "../LerpJob.sol";
 // Integration tests against live MCD
 abstract contract DssCronBaseTest is DSSTest {
 
+    using MCD for DssInstance;
+
     bytes32 constant NET_A = "NTWK-A";
     bytes32 constant NET_B = "NTWK-B";
     bytes32 constant NET_C = "NTWK-C";
@@ -33,24 +35,24 @@ abstract contract DssCronBaseTest is DSSTest {
     IlkRegistryAbstract ilkRegistry;
     Sequencer sequencer;
 
+    DssInstance dss;
+
     MCDUser user;
 
-    function setupEnv() internal virtual override returns (MCD) {
-        return new MCDMainnet();
-    }
-
-    function postSetup() internal virtual override {
+    function setUp() public {
+        dss = MCD.loadFromChainlog(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
+        
         sequencer = new Sequencer();
         sequencer.file("window", 12);       // Give 12 block window for each network (~3 mins)
         assertEq(sequencer.window(), 12);
 
-        ilkRegistry = IlkRegistryAbstract(mcd.chainlog().getAddress("ILK_REGISTRY"));
+        ilkRegistry = IlkRegistryAbstract(dss.chainlog.getAddress("ILK_REGISTRY"));
         
         // Add a default network
         sequencer.addNetwork(NET_A);
 
         // Add a default user
-        user = mcd.newUser();
+        user = dss.newUser();
         
         setUpSub();
     }
