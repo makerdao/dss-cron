@@ -29,18 +29,18 @@ contract AutoLineJobIntegrationTest is DssCronBaseTest {
     AutoLineJob autoLineJob;
 
     function setUpSub() virtual override internal {
-        autoline = DssAutoLineAbstract(mcd.chainlog().getAddress("MCD_IAM_AUTO_LINE"));
+        autoline = DssAutoLineAbstract(dss.chainlog.getAddress("MCD_IAM_AUTO_LINE"));
         
         // Setup with 10% / 50% bands
         autoLineJob = new AutoLineJob(address(sequencer), address(ilkRegistry), address(autoline), 1000, 5000);
         
-        mcd.vat().setWard(address(this), 1);
+        dss.vat.setWard(address(this), 1);
         address(autoline).setWard(address(this), 1);
 
         // Setup a dummy ilk in the vat
-        mcd.vat().init(ILK);
-        mcd.vat().file(ILK, "spot", RAY);
-        mcd.vat().file(ILK, "line", 1_000 * RAD);
+        dss.vat.init(ILK);
+        dss.vat.file(ILK, "spot", RAY);
+        dss.vat.file(ILK, "line", 1_000 * RAD);
         autoline.setIlk(ILK, 100_000 * RAD, 1_000 * RAD, 8 hours);
 
         // Add to ilk regitry as well (only care about the ilk ids array)
@@ -67,25 +67,25 @@ contract AutoLineJobIntegrationTest is DssCronBaseTest {
             if (!canWork) break;
             bytes32 ilk = abi.decode(args, (bytes32));
             if (ilk == ILK) break;
-            (,,, uint256 line,) = mcd.vat().ilks(ilk);
+            (,,, uint256 line,) = dss.vat.ilks(ilk);
             autoLineJob.work(network, args);
-            (,,, uint256 newLine,) = mcd.vat().ilks(ilk);
+            (,,, uint256 newLine,) = dss.vat.ilks(ilk);
             assertTrue(line != newLine, "Line should have changed.");
         }
     }
 
     function mint(bytes32 ilk, uint256 wad) internal {
-        (uint256 Art,,,,) = mcd.vat().ilks(ilk);
-        mcd.vat().slip(ilk, address(this), int256(wad));
-        mcd.vat().frob(ilk, address(this), address(this), address(this), int256(wad), int256(wad));
-        (uint256 nextArt,,,,) = mcd.vat().ilks(ilk);
+        (uint256 Art,,,,) = dss.vat.ilks(ilk);
+        dss.vat.slip(ilk, address(this), int256(wad));
+        dss.vat.frob(ilk, address(this), address(this), address(this), int256(wad), int256(wad));
+        (uint256 nextArt,,,,) = dss.vat.ilks(ilk);
         assertEq(nextArt, Art + wad);
     }
     function repay(bytes32 ilk, uint256 wad) internal {
-        (uint256 Art,,,,) = mcd.vat().ilks(ilk);
-        mcd.vat().frob(ilk, address(this), address(this), address(this), -int256(wad), -int256(wad));
-        mcd.vat().slip(ilk, address(this), -int256(wad));
-        (uint256 nextArt,,,,) = mcd.vat().ilks(ilk);
+        (uint256 Art,,,,) = dss.vat.ilks(ilk);
+        dss.vat.frob(ilk, address(this), address(this), address(this), -int256(wad), -int256(wad));
+        dss.vat.slip(ilk, address(this), -int256(wad));
+        (uint256 nextArt,,,,) = dss.vat.ilks(ilk);
         assertEq(nextArt, Art - wad);
     }
 
@@ -96,9 +96,9 @@ contract AutoLineJobIntegrationTest is DssCronBaseTest {
         for (uint256 i = 0; i < expectedArgs.length; i++) {
             assertEq(args[i], expectedArgs[i]);
         }
-        (,,, uint256 line,) = mcd.vat().ilks(ilk);
+        (,,, uint256 line,) = dss.vat.ilks(ilk);
         autoLineJob.work(network, args);
-        (,,, uint256 newLine,) = mcd.vat().ilks(ilk);
+        (,,, uint256 newLine,) = dss.vat.ilks(ilk);
         assertTrue(line != newLine, "Line should have changed.");
     }
 

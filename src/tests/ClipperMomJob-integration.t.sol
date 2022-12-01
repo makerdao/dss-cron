@@ -23,13 +23,16 @@ import {ClipperMomJob} from "../ClipperMomJob.sol";
 contract ClipperMomJobIntegrationTest is DssCronBaseTest {
 
     using GodMode for *;
+    using MCD for DssInstance;
 
     ClipperMomAbstract clipperMom;
+    DssIlkInstance ilk;
 
     ClipperMomJob clipperMomJob;
 
     function setUpSub() virtual override internal {
-        clipperMom = ClipperMomAbstract(mcd.chainlog().getAddress("CLIPPER_MOM"));
+        clipperMom = ClipperMomAbstract(dss.chainlog.getAddress("CLIPPER_MOM"));
+        ilk = dss.getIlk("ETH", "A");
 
         // Execute all lerps once a day
         clipperMomJob = new ClipperMomJob(address(sequencer), address(ilkRegistry), address(clipperMom));
@@ -58,41 +61,41 @@ contract ClipperMomJobIntegrationTest is DssCronBaseTest {
 
     function test_break() public {
         // Place a bad oracle price in the OSM
-        set_bad_price(address(mcd.wethAClip()), address(mcd.wethPip()));
+        set_bad_price(address(ilk.clip), address(ilk.pip));
         
         // Should be able to work and target the ETH-A clipper
         // Workable triggers the actual clipperMom.tripBreaker()
-        assertEq(mcd.wethAClip().stopped(), 0);
+        assertEq(ilk.clip.stopped(), 0);
         (bool canWork, bytes memory args) = clipperMomJob.workable(NET_A);
         assertTrue(canWork);
-        assertEq(abi.decode(args, (address)), address(mcd.wethAClip()));
-        assertEq(mcd.wethAClip().stopped(), 2);
+        assertEq(abi.decode(args, (address)), address(ilk.clip));
+        assertEq(ilk.clip.stopped(), 2);
     }
 
     function test_break_work() public {
         // Place a bad oracle price in the OSM
-        set_bad_price(address(mcd.wethAClip()), address(mcd.wethPip()));
+        set_bad_price(address(ilk.clip), address(ilk.pip));
         
         // Test the actual work function
-        assertEq(mcd.wethAClip().stopped(), 0);
-        clipperMomJob.work(NET_A, abi.encode(address(mcd.wethAClip())));
-        assertEq(mcd.wethAClip().stopped(), 2);
+        assertEq(ilk.clip.stopped(), 0);
+        clipperMomJob.work(NET_A, abi.encode(address(ilk.clip)));
+        assertEq(ilk.clip.stopped(), 2);
     }
 
     function test_break_multiple() public {
         // Place a bad oracle price in the OSM
-        set_bad_price(address(mcd.wethAClip()), address(mcd.wethPip()));
+        set_bad_price(address(ilk.clip), address(ilk.pip));
         
         // Should be able to trigger 3 clips
-        ClipAbstract wethBClip = ClipAbstract(mcd.chainlog().getAddress("MCD_CLIP_ETH_B"));
-        ClipAbstract wethCClip = ClipAbstract(mcd.chainlog().getAddress("MCD_CLIP_ETH_C"));
+        ClipAbstract wethBClip = ClipAbstract(dss.chainlog.getAddress("MCD_CLIP_ETH_B"));
+        ClipAbstract wethCClip = ClipAbstract(dss.chainlog.getAddress("MCD_CLIP_ETH_C"));
 
         // ETH-A
-        assertEq(mcd.wethAClip().stopped(), 0);
+        assertEq(ilk.clip.stopped(), 0);
         (bool canWork, bytes memory args) = clipperMomJob.workable(NET_A);
         assertTrue(canWork);
-        assertEq(abi.decode(args, (address)), address(mcd.wethAClip()));
-        assertEq(mcd.wethAClip().stopped(), 2);
+        assertEq(abi.decode(args, (address)), address(ilk.clip));
+        assertEq(ilk.clip.stopped(), 2);
 
         // ETH-B
         assertEq(wethBClip.stopped(), 0);

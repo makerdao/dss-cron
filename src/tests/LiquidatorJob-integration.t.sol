@@ -18,26 +18,30 @@ pragma solidity 0.8.13;
 import "./DssCronBase.t.sol";
 import {LiquidatorJob} from "../LiquidatorJob.sol";
 
-contract LiquidatorIntegrationTest is DssCronBaseTest {
+abstract contract LiquidatorIntegrationTest is DssCronBaseTest {
+
+    using MCD for DssInstance;
 
     address uniswapV3Callee;
+    DssIlkInstance ilk;
 
     LiquidatorJob liquidatorJob;
     LiquidatorJob liquidatorJob500;
 
     function setUpSub() virtual override internal {
         uniswapV3Callee = 0xdB9C76109d102d2A1E645dCa3a7E671EBfd8e11A;
+        ilk = dss.getIlk("ETH", "A");
 
         // 0% profit expectation
-        liquidatorJob = new LiquidatorJob(address(sequencer), address(mcd.daiJoin()), address(ilkRegistry), address(mcd.vow()), uniswapV3Callee, 0);
+        liquidatorJob = new LiquidatorJob(address(sequencer), address(dss.daiJoin), address(ilkRegistry), address(dss.vow), uniswapV3Callee, 0);
 
         // 5% profit expectation
-        liquidatorJob500 = new LiquidatorJob(address(sequencer), address(mcd.daiJoin()), address(ilkRegistry), address(mcd.vow()), uniswapV3Callee, 500);
+        liquidatorJob500 = new LiquidatorJob(address(sequencer), address(dss.daiJoin), address(ilkRegistry), address(dss.vow), uniswapV3Callee, 500);
 
         // TODO clear out any existing auctions
 
         // Create an auction on ETH-A
-        user.createAuction(mcd.wethAJoin(), 100 ether);
+        user.createAuction(ilk.join, 100 ether);
     }
 
     function trigger_next_liquidation_job(bytes32 network, LiquidatorJob liquidator) internal {
@@ -60,8 +64,8 @@ contract LiquidatorIntegrationTest is DssCronBaseTest {
 
     function test_eth_a() public {
         // Setup auction
-        uint256 auctionId = mcd.wethAClip().kicks();
-        (,uint256 tab,,,,) = mcd.wethAClip().sales(auctionId);
+        uint256 auctionId = ilk.clip.kicks();
+        (,uint256 tab,,,,) = ilk.clip.sales(auctionId);
         assertTrue(tab != 0, "auction didn't kick off");
 
         // Liquidation should not be available because the price is too high
@@ -73,21 +77,21 @@ contract LiquidatorIntegrationTest is DssCronBaseTest {
         GodMode.vm().warp(block.timestamp + 33 minutes);
 
         verify_no_liquidation_job(NET_A, liquidatorJob500);
-        uint256 vowDai = mcd.vat().dai(address(mcd.vow()));
+        uint256 vowDai = dss.vat.dai(address(dss.vow));
         trigger_next_liquidation_job(NET_A, liquidatorJob);
 
         // Auction should be cleared
-        (,tab,,,,) = mcd.wethAClip().sales(auctionId);
+        (,tab,,,,) = ilk.clip.sales(auctionId);
         assertEq(tab, 0);
 
         // Profit should go to vow
-        assertGt(mcd.vat().dai(address(mcd.vow())), vowDai);
+        assertGt(dss.vat.dai(address(dss.vow)), vowDai);
     }
 
     function test_eth_a_profit() public {
         // Setup auction
-        uint256 auctionId = mcd.wethAClip().kicks();
-        (,uint256 tab,,,,) = mcd.wethAClip().sales(auctionId);
+        uint256 auctionId = ilk.clip.kicks();
+        (,uint256 tab,,,,) = ilk.clip.sales(auctionId);
         assertTrue(tab != 0, "auction didn't kick off");
 
         // Liquidation should not be available because the price is too high
@@ -100,15 +104,15 @@ contract LiquidatorIntegrationTest is DssCronBaseTest {
         // A little bit further
         GodMode.vm().warp(block.timestamp + 8 minutes);
 
-        uint256 vowDai = mcd.vat().dai(address(mcd.vow()));
+        uint256 vowDai = dss.vat.dai(address(dss.vow));
         trigger_next_liquidation_job(NET_A, liquidatorJob500);
 
         // Auction should be cleared
-        (,tab,,,,) = mcd.wethAClip().sales(auctionId);
+        (,tab,,,,) = ilk.clip.sales(auctionId);
         assertEq(tab, 0);
 
         // Profit should go to vow
-        assertGt(mcd.vat().dai(address(mcd.vow())), vowDai);
+        assertGt(dss.vat.dai(address(dss.vow)), vowDai);
     }
 
 }
