@@ -99,7 +99,7 @@ contract Sequencer {
         if (!networks.add(network)) revert NetworkExists(network);
         if (windowSize == 0) revert WindowZero(network);
         windows[network] = Window({
-            start: 0,
+            start: 0,               // start will be set in refreshStarts
             length: windowSize
         });
         totalWindowSize += windowSize;
@@ -135,7 +135,7 @@ contract Sequencer {
     }
     function getMaster() external view returns (bytes32) {
         uint256 netLen = networks.length();
-        if (networks.length() == 0) return bytes32(0);
+        if (netLen == 0) return bytes32(0);
 
         uint256 pos = block.number % totalWindowSize;
         for (uint256 i = 0; i < netLen; i++) {

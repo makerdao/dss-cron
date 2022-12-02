@@ -43,13 +43,15 @@ abstract contract DssCronBaseTest is DSSTest {
         dss = MCD.loadFromChainlog(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
         
         sequencer = new Sequencer();
-        sequencer.file("window", 12);       // Give 12 block window for each network (~3 mins)
-        assertEq(sequencer.window(), 12);
 
         ilkRegistry = IlkRegistryAbstract(dss.chainlog.getAddress("ILK_REGISTRY"));
         
         // Add a default network
-        sequencer.addNetwork(NET_A);
+        sequencer.addNetwork(NET_A, 13);
+        assertEq(sequencer.totalWindowSize(), 13);
+        (uint256 start, uint256 length) = sequencer.windows(NET_A);
+        assertEq(start, 0);
+        assertEq(length, 13);
 
         // Add a default user
         user = dss.newUser();
