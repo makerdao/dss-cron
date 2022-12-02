@@ -68,6 +68,8 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_add_remove_network() public {
         sequencer.addNetwork(NET_A, 123);
+        vm.expectEmit(true, true, true, true);
+        emit RemoveNetwork(NET_A);
         sequencer.removeNetwork(NET_A);
 
         assertTrue(!sequencer.hasNetwork(NET_A));
@@ -78,7 +80,7 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_remove_non_existent_network() public {
         sequencer.addNetwork(NET_A, 123);
-        GodMode.vm().expectRevert(abi.encodeWithSignature("NetworkDoesNotExist(bytes32)", NET_B));
+        vm.expectRevert(abi.encodeWithSignature("NetworkDoesNotExist(bytes32)", NET_B));
         sequencer.removeNetwork(NET_B);
     }
 
@@ -157,6 +159,8 @@ contract SequencerTest is DssCronBaseTest {
     }
 
     function test_add_job() public {
+        vm.expectEmit(true, true, true, true);
+        emit AddJob(ADDR0);
         sequencer.addJob(ADDR0);
 
         assertEq(sequencer.jobAt(0), ADDR0);
@@ -166,12 +170,14 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_add_dupe_job() public {
         sequencer.addJob(ADDR0);
-        GodMode.vm().expectRevert(abi.encodeWithSignature("JobExists(address)", ADDR0));
+        vm.expectRevert(abi.encodeWithSignature("JobExists(address)", ADDR0));
         sequencer.addJob(ADDR0);
     }
 
     function test_add_remove_job() public {
         sequencer.addJob(ADDR0);
+        vm.expectEmit(true, true, true, true);
+        emit RemoveJob(ADDR0);
         sequencer.removeJob(ADDR0);
 
         assertTrue(!sequencer.hasJob(ADDR0));
@@ -180,7 +186,7 @@ contract SequencerTest is DssCronBaseTest {
 
     function test_remove_non_existent_job() public {
         sequencer.addJob(ADDR0);
-        GodMode.vm().expectRevert(abi.encodeWithSignature("JobDoesNotExist(address)", ADDR1));
+        vm.expectRevert(abi.encodeWithSignature("JobDoesNotExist(address)", ADDR1));
         sequencer.removeJob(ADDR1);
     }
 
