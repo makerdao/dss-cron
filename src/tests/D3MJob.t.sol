@@ -93,8 +93,8 @@ contract D3MJobTest is DssCronBaseTest {
         ilkRegistryMock = new IlkRegistryMock();
         dontExecute = new DontExecute();
 
-        // Kick off D3M update when things deviate outside 500bps and 5 minutes expiry
-        d3mJob = new D3MJob(address(sequencer), address(ilkRegistryMock), address(hub), 500, 5 minutes);
+        // Kick off D3M update when things deviate outside 500bps and 10 minutes expiry
+        d3mJob = new D3MJob(address(sequencer), address(ilkRegistryMock), address(hub), 500, 10 minutes);
     }
 
     function getDebt() internal view returns (uint256 art) {
@@ -128,7 +128,7 @@ contract D3MJobTest is DssCronBaseTest {
         hub.setTarget(100 ether);
         d3mJob.work(NET_A, abi.encode(bytes32("")));
         hub.setTarget(0);
-        GodMode.vm().warp(block.timestamp + 5 minutes);
+        GodMode.vm().warp(block.timestamp + 10 minutes);
 
         assertEq(getDebt(), 100 ether);
         assertTrue(isWorkable());
@@ -152,7 +152,7 @@ contract D3MJobTest is DssCronBaseTest {
         hub.setTarget(100 ether);
         d3mJob.work(NET_A, abi.encode(bytes32("")));
         hub.setTarget(105 ether);   // 5% outside threshold
-        GodMode.vm().warp(block.timestamp + 5 minutes);
+        GodMode.vm().warp(block.timestamp + 10 minutes);
 
         assertEq(getDebt(), 100 ether);
         assertTrue(isWorkable());
@@ -167,11 +167,11 @@ contract D3MJobTest is DssCronBaseTest {
         hub.setTarget(100 ether);
         d3mJob.work(NET_A, abi.encode(bytes32("")));
         hub.setTarget(105 ether);   // 5% outside threshold
-        GodMode.vm().warp(block.timestamp + 4 minutes);
+        GodMode.vm().warp(block.timestamp + 8 minutes);
 
         assertEq(getDebt(), 100 ether);
         assertTrue(!isWorkable());
-        GodMode.vm().warp(block.timestamp + 1 minutes);
+        GodMode.vm().warp(block.timestamp + 2 minutes);
         assertTrue(isWorkable());
 
         d3mJob.work(NET_A, abi.encode(bytes32("")));
