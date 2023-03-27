@@ -24,4 +24,4 @@ OracleJob: [0x00815d78D8FafCc9d61784c9b6Ce3b55d40e4950](https://etherscan.io/add
 
 NetworkPaymentAdapter (Gelato): [0x0B5a34D084b6A5ae4361de033d1e6255623b41eD](https://etherscan.io/address/0x0B5a34D084b6A5ae4361de033d1e6255623b41eD#code)  
 NetworkPaymentAdapter (Keep3r Network): [0xaeFed819b6657B3960A8515863abe0529Dfc444A](https://etherscan.io/address/0xaeFed819b6657B3960A8515863abe0529Dfc444A#code)  
-NetworkPaymentAdapter (Chainlink): [](https://etherscan.io/address/#code)  
+NetworkPaymentAdapter (Chainlink): [0xfB5e1D841BDA584Af789bDFABe3c6419140EC065](https://etherscan.io/address/0xfB5e1D841BDA584Af789bDFABe3c6419140EC065#code)  
