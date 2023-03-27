@@ -56,15 +56,15 @@ contract NetworkPaymentAdapter {
 
     // --- Data ---
     VestLike public immutable vest;
-    uint256 public immutable vestId;
-    INetworkTreasury public immutable treasury;
     DaiJoinLike public immutable daiJoin;
     DaiLike public immutable dai;
     address public immutable vow;
 
     // --- Parameters ---
+    uint256 public vestId;
     uint256 public bufferMax;
     uint256 public minimumPayment;
+    INetworkTreasury public treasury;
 
     // --- Tracking ---
     uint256 public totalSent;
@@ -72,6 +72,7 @@ contract NetworkPaymentAdapter {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event File(bytes32 indexed what, address data);
     event File(bytes32 indexed what, uint256 data);
     event TopUp(uint256 bufferSize, uint256 daiBalance, uint256 daiSent);
 
@@ -81,13 +82,11 @@ contract NetworkPaymentAdapter {
     error BufferFull(uint256 bufferSize, uint256 minimumPayment, uint256 bufferMax);
     error PendingDaiTooSmall(uint256 pendingDai, uint256 minimumPayment);
 
-    constructor(address _vest, uint256 _vestId, address _treasury, address _daiJoin, address _vow) {
+    constructor(address _vest, address _daiJoin, address _vow) {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
         vest = VestLike(_vest);
-        vestId = _vestId;
-        treasury = INetworkTreasury(_treasury);
         daiJoin = DaiJoinLike(_daiJoin);
         dai = DaiLike(daiJoin.dai());
         vow = _vow;
@@ -96,8 +95,18 @@ contract NetworkPaymentAdapter {
     }
 
     // --- Administration ---
+    function file(bytes32 what, address data) external auth {
+        if (what == "treasury") {
+            treasury = INetworkTreasury(data);
+        } else revert("NetworkPaymentAdapter/file-unrecognized-param");
+
+        emit File(what, data);
+    }
+
     function file(bytes32 what, uint256 data) external auth {
-        if (what == "bufferMax") {
+        if (what == "vestId") {
+            vestId = data;
+        } else if (what == "bufferMax") {
             bufferMax = data;
         } else if (what == "minimumPayment") {
             minimumPayment = data;

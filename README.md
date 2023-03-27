@@ -10,11 +10,18 @@ It is important that the `work` function succeeds IF AND ONLY IF the `workable` 
 
 # Deployed Contracts
 
-Sequencer: [0x9566eB72e47E3E20643C0b1dfbEe04Da5c7E4732](https://etherscan.io/address/0x9566eB72e47E3E20643C0b1dfbEe04Da5c7E4732#code)  
+Sequencer: [0x238b4E35dAed6100C6162fAE4510261f88996EC9](https://etherscan.io/address/0x238b4E35dAed6100C6162fAE4510261f88996EC9#code)  
 
 ## Active Jobs
 
-AutoLineJob [thi=1000 bps, tlo=5000 bps]: [0x8099D3E7B6f63040FBd25c7B1541b34055e95e19](https://etherscan.io/address/0x8099D3E7B6f63040FBd25c7B1541b34055e95e19#code)  
-LerpJob [maxDuration=1 day]: [0x68c843AfBE4b11a6d0700B516dd599f8587723bc](https://etherscan.io/address/0x68c843AfBE4b11a6d0700B516dd599f8587723bc#code)  
-D3MJob [threshold=500 bps, ttl=10 minutes]: [0x49E6f06fb6d10D787Ab56b6543556c9249d052BE](https://etherscan.io/address/0x49E6f06fb6d10D787Ab56b6543556c9249d052BE#code)  
-ClipperMomJob: [0x81fAa76b5f7D6211AcBD43967387561e5A9803bD](https://etherscan.io/address/0x81fAa76b5f7D6211AcBD43967387561e5A9803bD#code)  
+AutoLineJob [thi=1000 bps, tlo=5000 bps]: [0x67AD4000e73579B9725eE3A149F85C4Af0A61361](https://etherscan.io/address/0x67AD4000e73579B9725eE3A149F85C4Af0A61361#code)  
+LerpJob [maxDuration=1 day]: [0x8F8f2FC1F0380B9Ff4fE5c3142d0811aC89E32fB](https://etherscan.io/address/0x8F8f2FC1F0380B9Ff4fE5c3142d0811aC89E32fB#code)  
+D3MJob [threshold=500 bps, ttl=10 minutes]: [0xe105474bB43BF3E88e28f807786E3fd8a5A3E4D6](https://etherscan.io/address/0xe105474bB43BF3E88e28f807786E3fd8a5A3E4D6#code)  
+ClipperMomJob: [0xc3A76B34CFBdA7A3a5215629a0B937CBDEC7C71a](https://etherscan.io/address/0xc3A76B34CFBdA7A3a5215629a0B937CBDEC7C71a#code)  
+OracleJob: [0x00815d78D8FafCc9d61784c9b6Ce3b55d40e4950](https://etherscan.io/address/0x00815d78D8FafCc9d61784c9b6Ce3b55d40e4950#code)  
+
+## Network Payment Adapters
+
+NetworkPaymentAdapter (Gelato): [0x0B5a34D084b6A5ae4361de033d1e6255623b41eD](https://etherscan.io/address/0x0B5a34D084b6A5ae4361de033d1e6255623b41eD#code)  
+NetworkPaymentAdapter (Keep3r Network): [0xaeFed819b6657B3960A8515863abe0529Dfc444A](https://etherscan.io/address/0xaeFed819b6657B3960A8515863abe0529Dfc444A#code)  
+NetworkPaymentAdapter (Chainlink): [](https://etherscan.io/address/#code)  

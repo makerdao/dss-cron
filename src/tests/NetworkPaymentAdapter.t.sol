@@ -93,11 +93,11 @@ contract NetworkPaymentAdapterTest is DSSTest {
 
         adapter = new NetworkPaymentAdapter(
             address(vest),
-            VEST_ID,
-            address(treasury),
             address(daiJoin),
             vow
         );
+        adapter.file("vestId", VEST_ID);
+        adapter.file("treasury", address(treasury));
     }
 
     function test_auth() public {
@@ -105,7 +105,8 @@ contract NetworkPaymentAdapterTest is DSSTest {
     }
 
     function test_file() public {
-        checkFileUint(address(adapter), "NetworkPaymentAdapter", ["bufferMax", "minimumPayment"]);
+        checkFileAddress(address(adapter), "NetworkPaymentAdapter", ["treasury"]);
+        checkFileUint(address(adapter), "NetworkPaymentAdapter", ["vestId", "bufferMax", "minimumPayment"]);
     }
 
     function test_topUp() public {
