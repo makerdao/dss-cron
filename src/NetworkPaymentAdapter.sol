@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.13;
 
-import {INetworkTreasury} from "./INetworkTreasury.sol";
+import {INetworkTreasury} from "./interfaces/INetworkTreasury.sol";
 
 interface VestLike {
     function vest(uint256) external;
