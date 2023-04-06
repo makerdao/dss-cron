@@ -54,7 +54,7 @@ contract OracleJob is IJob {
     SpotterLike public immutable spotter;
 
     // Don't actually store anything
-    address[] private toPoke;
+    bytes32[] private toPoke;
     bytes32[] private spotterIlksToPoke;
 
     // --- Errors ---
@@ -62,7 +62,7 @@ contract OracleJob is IJob {
     error NotSuccessful();
 
     // --- Events ---
-    event Work(bytes32 indexed network, address[] toPoke, bytes32[] spotterIlksToPoke, uint256 numSuccessful);
+    event Work(bytes32 indexed network, bytes32[] toPoke, bytes32[] spotterIlksToPoke, uint256 numSuccessful);
 
     constructor(address _sequencer, address _ilkRegistry, address _spotter) {
         sequencer = SequencerLike(_sequencer);
@@ -74,10 +74,14 @@ contract OracleJob is IJob {
     function work(bytes32 network, bytes calldata args) external override {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
 
-        (address[] memory _toPoke, bytes32[] memory _spotterIlksToPoke) = abi.decode(args, (address[], bytes32[]));
+        (bytes32[] memory _toPoke, bytes32[] memory _spotterIlksToPoke) = abi.decode(args, (bytes32[], bytes32[]));
         uint256 numSuccessful = 0;
         for (uint256 i = 0; i < _toPoke.length; i++) {
-            try PokeLike(_toPoke[i]).poke() {
+            bytes32 ilk = _toPoke[i];
+            (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
+            if (Art == 0 && line == 0) continue;
+            PokeLike pip = PokeLike(ilkRegistry.pip(ilk));
+            try pip.poke() {
                 numSuccessful++;
             } catch {
             }
@@ -110,17 +114,17 @@ contract OracleJob is IJob {
             PokeLike pip = PokeLike(ilkRegistry.pip(ilk));
 
             if (address(pip) == address(0)) continue;
+            (uint256 Art,,  uint256 beforeSpot, uint256 line,) = vat.ilks(ilk);
+            if (Art == 0 && line == 0) continue; // Skip if no debt / line
 
             // Just try to poke the oracle and add to the list if it works
             // This won't add an OSM twice
             try pip.poke() {
-                toPoke.push(address(pip));
+                toPoke.push(ilk);
             } catch {
             }
 
             // See if the spot price changes
-            (uint256 Art,,  uint256 beforeSpot, uint256 line,) = vat.ilks(ilk);
-            if (Art == 0 && line == 0) continue; // Skip if no debt / line
             spotter.poke(ilk);
             (,,  uint256 afterSpot,,) = vat.ilks(ilk);
             if (beforeSpot != afterSpot) {

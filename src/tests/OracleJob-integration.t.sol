@@ -81,7 +81,7 @@ contract OracleJobIntegrationTest is DssCronBaseTest {
         uint256 zzz = ethA.pip.zzz();
         (bool canWork, bytes memory args) = oracleJob.workable(NET_A);
         assertEq(canWork, true);
-        (address[] memory _toPoke, bytes32[] memory _spotterIlksToPoke) = abi.decode(args, (address[], bytes32[]));
+        (bytes32[] memory _toPoke, bytes32[] memory _spotterIlksToPoke) = abi.decode(args, (bytes32[], bytes32[]));
         assertGt(_toPoke.length, 0, "should update all osms");
         assertEq(_spotterIlksToPoke.length, 0, "should not have any spotters to update");
         assertGt(ethA.pip.zzz(), zzz, "should have updated osm");
@@ -94,13 +94,13 @@ contract OracleJobIntegrationTest is DssCronBaseTest {
         vm.warp(block.timestamp + 1 hours);
         (bool canWork, bytes memory args) = oracleJob.workable(NET_A);
         assertEq(canWork, true);
-        (address[] memory _toPoke, bytes32[] memory _spotterIlksToPoke) = abi.decode(args, (address[], bytes32[]));
+        (bytes32[] memory _toPoke, bytes32[] memory _spotterIlksToPoke) = abi.decode(args, (bytes32[], bytes32[]));
         assertGt(_toPoke.length, 0);
         assertEq(_spotterIlksToPoke.length, 0);
         vm.warp(block.timestamp + 1 hours);
         (canWork, args) = oracleJob.workable(NET_A);
         assertEq(canWork, true);
-        (_toPoke, _spotterIlksToPoke) = abi.decode(args, (address[], bytes32[]));
+        (_toPoke, _spotterIlksToPoke) = abi.decode(args, (bytes32[], bytes32[]));
         assertGt(_toPoke.length, 0);
         assertEq(_spotterIlksToPoke.length, 5); // ETH-A, ETH-B, ETH-C, UNIV2DAIETH-A, UNIV2USDCETH-A, CRVV1ETHSTETH-A
         (,, uint256 spot,,) = dss.vat.ilks(ethA.join.ilk());
