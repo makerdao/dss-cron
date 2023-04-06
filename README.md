@@ -16,7 +16,7 @@ Sequencer: [0x238b4E35dAed6100C6162fAE4510261f88996EC9](https://etherscan.io/add
 
 AutoLineJob [thi=1000 bps, tlo=5000 bps]: [0x67AD4000e73579B9725eE3A149F85C4Af0A61361](https://etherscan.io/address/0x67AD4000e73579B9725eE3A149F85C4Af0A61361#code)  
 LerpJob [maxDuration=1 day]: [0x8F8f2FC1F0380B9Ff4fE5c3142d0811aC89E32fB](https://etherscan.io/address/0x8F8f2FC1F0380B9Ff4fE5c3142d0811aC89E32fB#code)  
-D3MJob [threshold=500 bps, ttl=10 minutes]: [0xe105474bB43BF3E88e28f807786E3fd8a5A3E4D6](https://etherscan.io/address/0xe105474bB43BF3E88e28f807786E3fd8a5A3E4D6#code)  
+D3MJob [threshold=500 bps, ttl=10 minutes]: [0x1Bb799509b0B039345f910dfFb71eEfAc7022323](https://etherscan.io/address/0x1Bb799509b0B039345f910dfFb71eEfAc7022323#code)  
 ClipperMomJob: [0xc3A76B34CFBdA7A3a5215629a0B937CBDEC7C71a](https://etherscan.io/address/0xc3A76B34CFBdA7A3a5215629a0B937CBDEC7C71a#code)  
 OracleJob: [0x00815d78D8FafCc9d61784c9b6Ce3b55d40e4950](https://etherscan.io/address/0x00815d78D8FafCc9d61784c9b6Ce3b55d40e4950#code)  
 
