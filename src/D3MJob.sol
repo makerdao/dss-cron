@@ -69,6 +69,7 @@ contract D3MJob is IJob {
     function shouldTrigger(uint256 part, uint256 nart) internal view returns (bool) {
         if (part == 0 && nart != 0) return true;    // From zero to non-zero
         if (part != 0 && nart == 0) return true;    // From non-zero to zero
+        if (part == 0 && nart == 0) return false;   // No change at zero
 
         // Check if the delta is above the threshold
         uint256 delta = nart * BPS / part;
