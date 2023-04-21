@@ -36,7 +36,7 @@ interface RWARegistryLike {
 
     function ilkToDeal(bytes32 ilk) external view returns (DealStatus status, uint256 pos);
     function list() external view returns (bytes32[] memory);
-    function getComponent(bytes32 ilk, bytes32 name) external view returns (address addr, uint8 variant);
+    function getComponent(bytes32 ilk, bytes32 name) external view returns (address addr, uint256 variant);
 }
 
 interface RwaJarLike {
@@ -116,14 +116,14 @@ contract RwaJob is IJob {
             (RWARegistryLike.DealStatus status,) = rwaRegistry.ilkToDeal(ilk);
             if (status == RWARegistryLike.DealStatus.ACTIVE) {
                 // We check if there is a jar for the ilk with balance above the predefined threshold.
-                try rwaRegistry.getComponent(ilk, JAR_COMPONENT) returns (address jar, uint8) {
+                try rwaRegistry.getComponent(ilk, JAR_COMPONENT) returns (address jar, uint256) {
                     if (dai.balanceOf(jar) >= threshold) {
                         return (true, abi.encode(ilk, JAR_COMPONENT));
                     }
                 } catch {}
 
                 // Otherwise, we check for an urn for the ilk with balance above the predefined threshold.
-                try rwaRegistry.getComponent(ilk, URN_COMPONENT) returns (address urn, uint8) {
+                try rwaRegistry.getComponent(ilk, URN_COMPONENT) returns (address urn, uint256) {
                     if (dai.balanceOf(urn) >= threshold) {
                         return (true, abi.encode(ilk, URN_COMPONENT));
                     }

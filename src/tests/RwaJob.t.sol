@@ -24,7 +24,7 @@ import {RwaJob} from "../RwaJob.sol";
 interface RWARegistryLike {
     error ComponentDoesNotExist(bytes32 ilk, bytes32 name);
 
-    function getComponent(bytes32 ilk_, bytes32 name_) external view returns (address addr, uint8 variant);
+    function getComponent(bytes32 ilk_, bytes32 name_) external view returns (address addr, uint256 variant);
     function finalize(bytes32 ilk_) external;
 }
 
@@ -34,7 +34,7 @@ contract RwaJobTest is DssCronBaseTest {
 
     RwaJob public rwaJob;
 
-    bytes32 internal constant RWA009 = "RWA009-A";
+    bytes32 internal constant RWA009 = "RWA009";
     bytes32 internal constant JAR = "jar";
     bytes32 internal constant URN = "urn";
     uint256 testDaiAmount = 10_000 * WAD;
@@ -46,8 +46,8 @@ contract RwaJobTest is DssCronBaseTest {
     event Work(bytes32 indexed network, bytes32 indexed ilk, bytes32 indexed componentName);
 
     function setUpSub() virtual override internal {
-        // registryAddr = vm.envAddress("MIP21_REGISTRY");
-        registryAddr = mcd.chainlog().getAddress("MIP21_REGISTRY");
+        registryAddr = vm.envAddress("MIP21_REGISTRY");
+        //registryAddr = mcd.chainlog().getAddress("MIP21_REGISTRY");
 
         rwaJob = new RwaJob(
             address(sequencer),
