@@ -50,8 +50,10 @@ contract FlapJobIntegrationTest is DssCronBaseTest {
     }
 
     function test_flap_no_need_to_heal() public {
+        uint256 snapshot = vm.snapshot();
         (bool canWork, bytes memory args) = flapJob.workable(NET_A);
         assertTrue(canWork, "Should be able to work");
+        vm.revertTo(snapshot);
 
         vm.expectEmit(false, false, false, false);
         emit LogNote(dss.vow.flap.selector, address(0), 0, 0, bytes(""));
