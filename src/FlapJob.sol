@@ -38,25 +38,25 @@ contract FlapJob is IJob {
     SequencerLike public immutable sequencer;
     VatLike       public immutable vat;
     VowLike       public immutable vow;
-    uint256       public immutable maxBaseFee;
+    uint256       public immutable maxGasPrice;
 
     // --- Errors ---
     error NotMaster(bytes32 network);
-    error BaseFeeTooHigh(uint256 baseFee, uint256 maxBaseFee);
+    error GasPriceTooHigh(uint256 gasPrice, uint256 maxGasPrice);
 
     // --- Events ---
     event Work(bytes32 indexed network);
 
-    constructor(address _sequencer, address _vat, address _vow, uint256 _maxBaseFee) {
-        sequencer  = SequencerLike(_sequencer);
-        vat        = VatLike(_vat);
-        vow        = VowLike(_vow);
-        maxBaseFee = _maxBaseFee;
+    constructor(address _sequencer, address _vat, address _vow, uint256 _maxGasPrice) {
+        sequencer   = SequencerLike(_sequencer);
+        vat         = VatLike(_vat);
+        vow         = VowLike(_vow);
+        maxGasPrice = _maxGasPrice;
     }
 
     function work(bytes32 network, bytes calldata args) public {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
-        if (block.basefee > maxBaseFee)   revert BaseFeeTooHigh(block.basefee, maxBaseFee);
+        if (tx.gasprice > maxGasPrice)    revert GasPriceTooHigh(tx.gasprice, maxGasPrice);
 
         uint256 toHeal = abi.decode(args, (uint256));
         if (toHeal > 0) vow.heal(toHeal);
