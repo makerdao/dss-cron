@@ -34,7 +34,7 @@ contract FlapJobIntegrationTest is DssCronBaseTest {
     ) anonymous;
 
     function setUpSub() virtual override internal {
-        flapJob = new FlapJob(address(sequencer), address(dss.vat), address(dss.vow));
+        flapJob = new FlapJob(address(sequencer), address(dss.vat), address(dss.vow), block.basefee);
 
         // Make sure that if a flapper has a cooldown period it already passed
         GodMode.vm().warp(block.timestamp + 10 days);
@@ -90,6 +90,13 @@ contract FlapJobIntegrationTest is DssCronBaseTest {
         // force hump to be higher than the SB
         uint256 newVowHump = dss.vat.dai(address(dss.vow)) + 1;
         stdstore.target(address(dss.vow)).sig("hump()").checked_write(newVowHump);
+
+        (bool canWork,) = flapJob.workable(NET_A);
+        assertTrue(!canWork, "Should not be able to work");
+    }
+
+    function test_flap_baseFeeTooHigh() public {
+        vm.fee(block.basefee + 1);
 
         (bool canWork,) = flapJob.workable(NET_A);
         assertTrue(!canWork, "Should not be able to work");
