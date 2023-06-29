@@ -26,10 +26,16 @@ interface VatLike {
 }
 
 interface VowLike {
+    function flapper() external view returns (address);
     function Sin() external view returns (uint256);
     function Ash() external view returns (uint256);
     function heal(uint256) external;
     function flap() external;
+}
+
+interface FlapperLike {
+    function zzz() external view returns (uint256);
+    function hop() external view returns (uint256);
 }
 
 /// @title Call flap when possible
@@ -38,25 +44,31 @@ contract FlapJob is IJob {
     SequencerLike public immutable sequencer;
     VatLike       public immutable vat;
     VowLike       public immutable vow;
+    FlapperLike   public immutable flapper;
     uint256       public immutable maxGasPrice;
+    uint256       public immutable delay;
 
     // --- Errors ---
     error NotMaster(bytes32 network);
     error GasPriceTooHigh(uint256 gasPrice, uint256 maxGasPrice);
+    error TooEarly();
 
     // --- Events ---
     event Work(bytes32 indexed network);
 
-    constructor(address _sequencer, address _vat, address _vow, uint256 _maxGasPrice) {
+    constructor(address _sequencer, address _vat, address _vow, uint256 _maxGasPrice, uint256 _delay) {
         sequencer   = SequencerLike(_sequencer);
         vat         = VatLike(_vat);
         vow         = VowLike(_vow);
+        flapper     = FlapperLike(vow.flapper());
         maxGasPrice = _maxGasPrice;
+        delay       = _delay;
     }
 
     function work(bytes32 network, bytes calldata args) public {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
         if (tx.gasprice > maxGasPrice)    revert GasPriceTooHigh(tx.gasprice, maxGasPrice);
+        if (block.timestamp < flapper.zzz() + flapper.hop() + delay) revert TooEarly();
 
         uint256 toHeal = abi.decode(args, (uint256));
         if (toHeal > 0) vow.heal(toHeal);

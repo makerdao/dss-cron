@@ -19,11 +19,24 @@ import "./DssCronBase.t.sol";
 
 import {FlapJob} from "../FlapJob.sol";
 
+// TODO: replace with real flapper once it's ready
+contract FlapperMock {
+    uint256 public hop = 1577 seconds;
+    uint256 public zzz = block.timestamp;
+
+    function kick(uint256, uint256) external returns (uint256) {
+        require(block.timestamp >= zzz + hop, "FlapperMock/kicked-too-soon");
+        zzz = block.timestamp;
+        return 0;
+    }
+}
+
 contract FlapJobIntegrationTest is DssCronBaseTest {
     using stdStorage for StdStorage;
     using GodMode for *;
 
-    FlapJob flapJob;
+    FlapJob     flapJob;
+    FlapperMock flapper;
 
     event LogNote(
         bytes4   indexed  sig,
@@ -34,10 +47,16 @@ contract FlapJobIntegrationTest is DssCronBaseTest {
     ) anonymous;
 
     function setUpSub() virtual override internal {
-        flapJob = new FlapJob(address(sequencer), address(dss.vat), address(dss.vow), tx.gasprice);
+        flapper = new FlapperMock();
+        
+        GodMode.setWard(address(dss.vow), address(this), 1);
+        dss.vow.file("flapper", address(flapper));
+        GodMode.setWard(address(dss.vow), address(this), 0);
 
-        // Make sure that if a flapper has a cooldown period it already passed
-        GodMode.vm().warp(block.timestamp + 10 days);
+        flapJob = new FlapJob(address(sequencer), address(dss.vat), address(dss.vow), tx.gasprice, 60 seconds);
+
+        // Make sure that the flapper cooldown period and the flap job delay has passed
+        GodMode.vm().warp(flapper.zzz() + flapper.hop() + flapJob.delay());
 
         // Set default values that assure flap will succeed without a need to heal
         stdstore.target(address(dss.vat)).sig("dai(address)").with_key(address(dss.vow)).depth(0).checked_write(70 * MILLION * RAD);
@@ -96,9 +115,18 @@ contract FlapJobIntegrationTest is DssCronBaseTest {
     }
 
     function test_flap_gasPriceTooHigh() public {
-        flapJob = new FlapJob(address(sequencer), address(dss.vat), address(dss.vow), tx.gasprice - 1);
+        flapJob = new FlapJob(address(sequencer), address(dss.vat), address(dss.vow), tx.gasprice - 1, 60 seconds);
 
         (bool canWork,) = flapJob.workable(NET_A);
         assertTrue(!canWork, "Should not be able to work");
     }
+
+    function test_flap_tooEarly() public {
+        // Make sure the flap job delay has not passed
+        GodMode.vm().warp(flapper.zzz() + flapper.hop() + flapJob.delay() - 1);
+
+        (bool canWork,) = flapJob.workable(NET_A);
+        assertTrue(!canWork, "Should not be able to work");
+    }
+
 }
