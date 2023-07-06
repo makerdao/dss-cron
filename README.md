@@ -21,7 +21,7 @@ ClipperMomJob: [0xc3A76B34CFBdA7A3a5215629a0B937CBDEC7C71a](https://etherscan.io
 OracleJob: [0xe717Ec34b2707fc8c226b34be5eae8482d06ED03](https://etherscan.io/address/0xe717Ec34b2707fc8c226b34be5eae8482d06ED03#code)  
 FlapJob [maxGasPrice=138 gwei]: [0xc32506E9bB590971671b649d9B8e18CB6260559F](https://etherscan.io/address/0xc32506E9bB590971671b649d9B8e18CB6260559F#code)  
 
-## Network Payment Adaptersg
+## Network Payment Adapters
 
 NetworkPaymentAdapter (Gelato): [0x0B5a34D084b6A5ae4361de033d1e6255623b41eD](https://etherscan.io/address/0x0B5a34D084b6A5ae4361de033d1e6255623b41eD#code)  
 NetworkPaymentAdapter (Keep3r Network): [0xaeFed819b6657B3960A8515863abe0529Dfc444A](https://etherscan.io/address/0xaeFed819b6657B3960A8515863abe0529Dfc444A#code)  
