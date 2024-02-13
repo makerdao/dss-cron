@@ -21,13 +21,14 @@ import {LitePsmJob} from "../LitePsmJob.sol";
 import {LitePsmLike} from "../LitePsmJob.sol";
 
 interface DaiAbstract {
+    function approve(address, uint256) external;
     function balanceOf(address) external view returns (uint256);
 }
 
 interface GemLike {
+    function approve(address, uint256) external;
     function balanceOf(address) external view returns (uint256);
     function decimals() external view returns (uint8);
-    function approve(address, uint256) external;
     function transfer(address, uint256) external;
     function transferFrom(address, address, uint256) external;
 }
@@ -40,20 +41,27 @@ interface VatLike {
     function debt() external view returns (uint256);
     function Line() external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
+    function file(bytes32 ilk, bytes32 what, uint data) external;
+    function file(bytes32 what, uint data) external;
 }
 
 contract LitePsmJobIntegrationTest is DssCronBaseTest {
 
     using GodMode for *;
 
+    uint256 constant MILLION_WAD = MILLION * WAD;
+
     LitePsmLike public litePsm;
     LitePsmJob public litePsmJob;
     address public gem;
     address public dai;
     address public pocket;
+    address vat;
+    bytes32 ilk;
 
     // --- Events ---
     event Chug(uint256 wad);
+    event Fill(uint256 wad);
     event Trim(uint256 wad);
     event Work(bytes32 indexed network);
 
@@ -61,32 +69,53 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         litePsm = LitePsmLike(dss.chainlog.getAddress("MCD_LITE_PSM_USDC_A"));
         pocket = dss.chainlog.getAddress("MCD_LITE_PSM_POCKET_USDC_A");
         dai = dss.chainlog.getAddress("MCD_DAI");
-
-        litePsmJob = new LitePsmJob(address(sequencer), litePsm, 1_000_000e18, 1_000_000e18, 1_000_000e18);
-
+        litePsmJob = new LitePsmJob(address(sequencer), litePsm, MILLION_WAD, MILLION_WAD, MILLION_WAD);
         gem = litePsm.gem();
+        ilk = litePsm.ilk();
+        vat = litePsm.vat();
+        // give auth access to this contract (caller) to vat for manipulating params
+        GodMode.setWard(vat, address(this), 1);
     }
 
-    // function test_fill() public {
-    //     uint256 amount = 10_000_000e18;
-    //     deal(gem, pocket, amount);
-    //     uint256 wad = litePsm.rush();
-    //     assertEq(wad, 0);
-    //     deal(gem, pocket, amount);
-    //     uint256 newWad = litePsm.rush();
-    //     assertEq(newWad, amount);
-    //     (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
-    //     if (canWork){
-    //         (bytes4 fn) = abi.decode(args, (bytes4));
-    //         bytes4 encodedSelector = bytes4(abi.encode(litePsm.fill.selector));
-    //         assertEq(fn, encodedSelector);
-    //     }
-    // }
+    function test_fill() public {
+        // GodMode.setWard(address(litePsm), address(this), 1);
+        (uint256 Art,,, uint256 line,) = VatLike(vat).ilks(ilk);
+
+        // tArt must be greater than Art
+        // tArt = GemLike(gem).balanceOf(pocket) * GemConversionFactor + buf_;
+        uint256 GemConversionFactor = 10 ** (18 - GemLike(gem).decimals());
+        deal(gem, pocket, Art * 2 / GemConversionFactor);
+
+        // ilk line must be greater than Art
+        uint256 newLine = Art * 2 * RAY;
+        VatLike(vat).file(ilk, "line", newLine);
+        (Art,,, line,) = VatLike(vat).ilks(ilk);
+
+        // vat.Line() must be greater than vat.debt()
+        uint256 vatLine = VatLike(vat).Line();
+        uint256 vatDebt = VatLike(vat).debt();
+        VatLike(vat).file("Line", vatLine + vatDebt);
+
+        uint256 wad = litePsm.rush();
+        assertTrue(wad != 0);
+        (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
+        if (canWork){
+            (bytes4 fn) = abi.decode(args, (bytes4));
+            bytes4 encodedSelector = bytes4(abi.encode(litePsm.fill.selector));
+            assertEq(fn, encodedSelector);
+            vm.expectEmit(false, false, false, true);
+            emit Fill(wad);
+            vm.expectEmit(true, false, false, false);
+            emit Work(NET_A);
+            litePsmJob.work(NET_A, args);
+            wad = litePsm.rush();
+            assertEq(wad, 0);
+        }
+    }
 
      function test_chug() public {
-        address vat_ = litePsm.vat();
-        bytes32 ilk = litePsm.ilk();
-        (, uint256 art) = VatLike(vat_).urns(ilk, address(litePsm));
+        // the dai balance of LitePsm must be greater than the urn's art for this ilk
+        (, uint256 art) = VatLike(vat).urns(ilk, address(litePsm));
         deal(dai, address(litePsm), art + 1); //must be greater than art so we dont have underflow
         uint256 wad = litePsm.cut();
         assertTrue(wad != 0);
@@ -106,9 +135,17 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
     }
 
     function test_trim() public {
-        uint256 amount = 10_000_000_000e18;
-        deal(dai, address(litePsm), amount);
-        deal(gem, pocket, 0);
+        (uint256 Art,,, uint256 line,) = VatLike(vat).ilks(ilk);
+         // Art must be greater than ilk line
+        uint256 newLine = (Art / 2)  * RAY;
+        VatLike(vat).file(ilk, "line", newLine);
+        (Art,,, line,) = VatLike(vat).ilks(ilk);
+        // dai balance of LitePsm must be non-zero
+        deal(dai, address(litePsm), Art);
+        // we first call chug() so workable returns trim() instead of chug()
+        if (litePsm.cut() > MILLION_WAD){
+            litePsm.chug();
+        }
         uint256 wad = litePsm.gush();
         assertTrue(wad != 0);
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
