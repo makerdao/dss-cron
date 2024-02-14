@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.13;
 
+import "forge-std/Test.sol";
 import "./DssCronBase.t.sol";
 
 import {LitePsmJob} from "../LitePsmJob.sol";
@@ -161,6 +162,28 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
             wad = litePsm.gush();
             assertEq(wad, 0);
         }
+    }
+
+    /***  Revert Test Cases ***/
+
+    function test_noWork() public {
+        (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
+        assertTrue(canWork == false);
+        assertEq(args, bytes("No work to do"));
+    }
+
+    function test_unsupportedFunction() public {
+        bytes4 fn = 0x00000000;
+        bytes memory args = abi.encode(fn);
+        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.UnsupportedFunction.selector, fn));
+        litePsmJob.work(NET_A, args);
+    }
+
+    function test_nonMasterNetwork() public {
+        bytes32 network = "ERROR";
+        bytes memory args = abi.encode("0");
+        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.NotMaster.selector, network));
+        litePsmJob.work(network, args);
     }
 
 }
