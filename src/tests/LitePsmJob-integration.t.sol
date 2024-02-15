@@ -100,18 +100,17 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         uint256 wad = litePsm.rush();
         assertTrue(wad != 0, "rush() returns 0");
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
-        if (canWork){
-            (bytes4 fn) = abi.decode(args, (bytes4));
-            bytes4 encodedSelector = bytes4(abi.encode(litePsm.fill.selector));
-            assertEq(fn, encodedSelector, "fill() selector mismatch");
-            vm.expectEmit(false, false, false, true);
-            emit Fill(wad);
-            vm.expectEmit(true, false, false, false);
-            emit Work(NET_A);
-            litePsmJob.work(NET_A, args);
-            wad = litePsm.rush();
-            assertEq(wad, 0, "rush() does not return 0");
-        }
+        assertTrue(canWork, "workable returns false");
+        (bytes4 fn) = abi.decode(args, (bytes4));
+        bytes4 encodedSelector = bytes4(abi.encode(litePsm.fill.selector));
+        assertEq(fn, encodedSelector, "fill() selector mismatch");
+        vm.expectEmit(false, false, false, true);
+        emit Fill(wad);
+        vm.expectEmit(true, false, false, false);
+        emit Work(NET_A);
+        litePsmJob.work(NET_A, args);
+        wad = litePsm.rush();
+        assertEq(wad, 0, "rush() does not return 0");
     }
 
      function test_chug() public {
@@ -121,18 +120,17 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         uint256 wad = litePsm.cut();
         assertTrue(wad != 0, "cut() returns 0");
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
-        if (canWork){
-            (bytes4 fn) = abi.decode(args, (bytes4));
-            bytes4 encodedSelector = bytes4(abi.encode(litePsm.chug.selector));
-            assertEq(fn, encodedSelector, "chug() selector mismatch");
-            vm.expectEmit(false, false, false, true);
-            emit Chug(wad);
-            vm.expectEmit(true, false, false, false);
-            emit Work(NET_A);
-            litePsmJob.work(NET_A, args);
-            wad = litePsm.cut();
-            assertEq(wad, 0, "cut() does not return 0");
-        }
+        assertTrue(canWork, "workable returns false");
+        (bytes4 fn) = abi.decode(args, (bytes4));
+        bytes4 encodedSelector = bytes4(abi.encode(litePsm.chug.selector));
+        assertEq(fn, encodedSelector, "chug() selector mismatch");
+        vm.expectEmit(false, false, false, true);
+        emit Chug(wad);
+        vm.expectEmit(true, false, false, false);
+        emit Work(NET_A);
+        litePsmJob.work(NET_A, args);
+        wad = litePsm.cut();
+        assertEq(wad, 0, "cut() does not return 0");
     }
 
     function test_trim() public {
@@ -150,18 +148,18 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         uint256 wad = litePsm.gush();
         assertTrue(wad != 0, "gush() returns 0");
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
-        if (canWork){
-            (bytes4 fn) = abi.decode(args, (bytes4));
-            bytes4 encodedSelector = bytes4(abi.encode(litePsm.trim.selector));
-            assertEq(fn, encodedSelector, "trim() selector mismatch");
-            vm.expectEmit(false, false, false, true);
-            emit Trim(wad);
-            vm.expectEmit(true, false, false, false);
-            emit Work(NET_A);
-            litePsmJob.work(NET_A, args);
-            wad = litePsm.gush();
-            assertEq(wad, 0, "gush() does not return 0");
-        }
+        assertTrue(canWork, "workable returns false");
+        (bytes4 fn) = abi.decode(args, (bytes4));
+        bytes4 encodedSelector = bytes4(abi.encode(litePsm.trim.selector));
+        assertEq(fn, encodedSelector, "trim() selector mismatch");
+        vm.expectEmit(false, false, false, true);
+        emit Trim(wad);
+        vm.expectEmit(true, false, false, false);
+        emit Work(NET_A);
+        litePsmJob.work(NET_A, args);
+        wad = litePsm.gush();
+        assertEq(wad, 0, "gush() does not return 0");
+
     }
 
     /***  Revert Test Cases ***/
