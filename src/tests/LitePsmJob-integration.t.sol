@@ -83,9 +83,9 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         (uint256 Art,,, uint256 line,) = VatLike(vat).ilks(ilk);
 
         // tArt must be greater than Art
-        // tArt = GemLike(gem).balanceOf(pocket) * GemConversionFactor + buf_;
-        uint256 GemConversionFactor = 10 ** (18 - GemLike(gem).decimals());
-        deal(gem, pocket, Art * 2 / GemConversionFactor);
+        // tArt = GemLike(gem).balanceOf(pocket) * gemConversionFactor + buf_;
+        uint256 gemConversionFactor = 10 ** (18 - GemLike(gem).decimals());
+        deal(gem, pocket, Art * 2 / gemConversionFactor);
 
         // ilk line must be greater than Art
         uint256 newLine = Art * 2 * RAY;
