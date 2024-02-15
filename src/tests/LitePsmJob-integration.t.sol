@@ -139,15 +139,20 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         (Art,,, line,) = VatLike(vat).ilks(ilk);
         // dai balance of LitePsm must be non-zero
         deal(dai, address(litePsm), Art);
-        // we first call chug() so workable returns trim() instead of chug()
-        if (litePsm.cut() > MILLION_WAD){
-            litePsm.chug();
-        }
-        uint256 wad = litePsm.gush();
-        assertTrue(wad != 0, "gush() returns 0");
+        // workable() will return chug() because it has precedence!
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
         assertTrue(canWork, "workable returns false");
         (bytes4 fn) = abi.decode(args, (bytes4));
+        assertEq(fn, litePsm.chug.selector, "chug() selector mismatch");
+        // call chug() first!
+        litePsmJob.work(NET_A, args);
+        // gush() should return a non zero value so trim() meaning that trim can be called
+        uint256 wad = litePsm.gush();
+        assertTrue(wad != 0, "gush() returns 0");
+        // we call workable again, it should return trim() now!
+        (canWork, args) = litePsmJob.workable(NET_A);
+        assertTrue(canWork, "workable returns false");
+        (fn) = abi.decode(args, (bytes4));
         assertEq(fn, litePsm.trim.selector, "trim() selector mismatch");
         vm.expectEmit(false, false, false, true);
         emit Trim(wad);
