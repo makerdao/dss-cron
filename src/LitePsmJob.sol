@@ -28,13 +28,6 @@ interface LitePsmLike {
     function gush() external view returns (uint256 wad);
     function rush() external view returns (uint256 wad);
     function trim() external returns (uint256 wad);
-    function gem() external returns (address);
-    function ilk() external returns (bytes32);
-    function vat() external returns (address);
-    function buf() external returns (uint256);
-    function buyGem(address usr, uint256 gemAmt) external returns (uint256 daiInWad);
-    function sellGem(address usr, uint256 gemAmt) external returns (uint256 daiOutWad);
-    function file(bytes32 what, uint256 data) external;
 }
 
 /// @title Call flap when possible

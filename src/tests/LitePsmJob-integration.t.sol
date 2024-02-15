@@ -18,26 +18,27 @@ pragma solidity 0.8.13;
 import "forge-std/Test.sol";
 import "./DssCronBase.t.sol";
 
-import {LitePsmJob} from "../LitePsmJob.sol";
 import {LitePsmLike} from "../LitePsmJob.sol";
+import {LitePsmJob} from "../LitePsmJob.sol";
 
-interface DaiAbstract {
-    function approve(address, uint256) external;
-    function balanceOf(address) external view returns (uint256);
+interface LitePsm {
+    function chug() external returns (uint256 wad);
+    function cut() external view returns (uint256 wad);
+    function file(bytes32 what, uint256 data) external;
+    function fill() external returns (uint256 wad);
+    function gem() external returns (address);
+    function gush() external view returns (uint256 wad);
+    function ilk() external returns (bytes32);
+    function rush() external view returns (uint256 wad);
+    function trim() external returns (uint256 wad);
+    function vat() external returns (address);
 }
 
 interface GemLike {
-    function approve(address, uint256) external;
-    function balanceOf(address) external view returns (uint256);
     function decimals() external view returns (uint8);
-    function transfer(address, uint256) external;
-    function transferFrom(address, address, uint256) external;
 }
 
 interface VatLike {
-    function frob(bytes32, address, address, address, int256, int256) external;
-    function hope(address) external;
-    function slip(bytes32, address, int256) external;
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
     function debt() external view returns (uint256);
     function Line() external view returns (uint256);
@@ -52,7 +53,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
 
     uint256 constant MILLION_WAD = MILLION * WAD;
 
-    LitePsmLike public litePsm;
+    LitePsm public litePsm;
     LitePsmJob public litePsmJob;
     address public gem;
     address public dai;
@@ -67,10 +68,10 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
     event Work(bytes32 indexed network);
 
     function setUpSub() virtual override internal {
-        litePsm = LitePsmLike(dss.chainlog.getAddress("MCD_LITE_PSM_USDC_A"));
+        litePsm = LitePsm(dss.chainlog.getAddress("MCD_LITE_PSM_USDC_A"));
         pocket = dss.chainlog.getAddress("MCD_LITE_PSM_POCKET_USDC_A");
         dai = dss.chainlog.getAddress("MCD_DAI");
-        litePsmJob = new LitePsmJob(address(sequencer), litePsm, MILLION_WAD, MILLION_WAD, MILLION_WAD);
+        litePsmJob = new LitePsmJob(address(sequencer), LitePsmLike(address(litePsm)), MILLION_WAD, MILLION_WAD, MILLION_WAD);
         gem = litePsm.gem();
         ilk = litePsm.ilk();
         vat = litePsm.vat();
@@ -79,11 +80,10 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
     }
 
     function test_fill() public {
-        // GodMode.setWard(address(litePsm), address(this), 1);
         (uint256 Art,,, uint256 line,) = VatLike(vat).ilks(ilk);
 
         // tArt must be greater than Art
-        // tArt = GemLike(gem).balanceOf(pocket) * gemConversionFactor + buf_;
+        // tArt = GemLike(gem).balanceOf(pocket) * gemConversionFactor + buf;
         uint256 gemConversionFactor = 10 ** (18 - GemLike(gem).decimals());
         deal(gem, pocket, Art * 2 / gemConversionFactor);
 
