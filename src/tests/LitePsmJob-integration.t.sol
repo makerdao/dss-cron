@@ -102,8 +102,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
         assertTrue(canWork, "workable returns false");
         (bytes4 fn) = abi.decode(args, (bytes4));
-        bytes4 encodedSelector = bytes4(abi.encode(litePsm.fill.selector));
-        assertEq(fn, encodedSelector, "fill() selector mismatch");
+        assertEq(fn, litePsm.fill.selector, "fill() selector mismatch");
         vm.expectEmit(false, false, false, true);
         emit Fill(wad);
         vm.expectEmit(true, false, false, false);
@@ -122,8 +121,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
         assertTrue(canWork, "workable returns false");
         (bytes4 fn) = abi.decode(args, (bytes4));
-        bytes4 encodedSelector = bytes4(abi.encode(litePsm.chug.selector));
-        assertEq(fn, encodedSelector, "chug() selector mismatch");
+        assertEq(fn, litePsm.chug.selector, "chug() selector mismatch");
         vm.expectEmit(false, false, false, true);
         emit Chug(wad);
         vm.expectEmit(true, false, false, false);
@@ -150,8 +148,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
         assertTrue(canWork, "workable returns false");
         (bytes4 fn) = abi.decode(args, (bytes4));
-        bytes4 encodedSelector = bytes4(abi.encode(litePsm.trim.selector));
-        assertEq(fn, encodedSelector, "trim() selector mismatch");
+        assertEq(fn, litePsm.trim.selector, "trim() selector mismatch");
         vm.expectEmit(false, false, false, true);
         emit Trim(wad);
         vm.expectEmit(true, false, false, false);
