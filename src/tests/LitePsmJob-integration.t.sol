@@ -64,7 +64,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
     event Chug(uint256 wad);
     event Fill(uint256 wad);
     event Trim(uint256 wad);
-    event Work(bytes32 indexed network);
+    event Work(bytes32 indexed network, bytes4 indexed action);
 
     function setUpSub() internal virtual override {
         litePsm = LitePsm(dss.chainlog.getAddress("MCD_LITE_PSM_USDC_A"));
@@ -106,7 +106,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         vm.expectEmit(false, false, false, true);
         emit Fill(wad);
         vm.expectEmit(true, false, false, false);
-        emit Work(NET_A);
+        emit Work(NET_A, fn);
         litePsmJob.work(NET_A, args);
         wad = litePsm.rush();
         assertEq(wad, 0, "rush() does not return 0");
@@ -125,7 +125,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         vm.expectEmit(false, false, false, true);
         emit Chug(wad);
         vm.expectEmit(true, false, false, false);
-        emit Work(NET_A);
+        emit Work(NET_A, fn);
         litePsmJob.work(NET_A, args);
         wad = litePsm.cut();
         assertEq(wad, 0, "cut() does not return 0");
@@ -157,7 +157,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         vm.expectEmit(false, false, false, true);
         emit Trim(wad);
         vm.expectEmit(true, false, false, false);
-        emit Work(NET_A);
+        emit Work(NET_A, fn);
         litePsmJob.work(NET_A, args);
         wad = litePsm.gush();
         assertEq(wad, 0, "gush() does not return 0");

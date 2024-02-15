@@ -44,7 +44,7 @@ contract LitePsmJob is IJob {
     error UnsupportedFunction(bytes4 fn);
 
     // --- Events ---
-    event Work(bytes32 indexed network);
+    event Work(bytes32 indexed network, bytes4 indexed action);
 
     constructor(
         address _sequencer,
@@ -75,7 +75,7 @@ contract LitePsmJob is IJob {
             revert UnsupportedFunction(fn);
         }
 
-        emit Work(network);
+        emit Work(network, fn);
     }
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
