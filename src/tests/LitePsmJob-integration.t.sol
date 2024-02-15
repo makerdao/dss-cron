@@ -130,7 +130,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         assertEq(wad, 0, "cut() does not return 0");
     }
 
-    function test_trim() public {
+    function test_trim_only_after_chug() public {
         (uint256 Art,,, uint256 line,) = VatLike(vat).ilks(ilk);
         // Art must be greater than ilk line
         uint256 newLine = (Art / 2) * RAY;
@@ -165,20 +165,20 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
     /**
      *  Revert Test Cases **
      */
-    function test_noWork() public {
+    function test_no_work() public {
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
         assertTrue(canWork == false, "workable() returns true");
         assertEq(args, bytes("No work to do"), "Wrong No work  message");
     }
 
-    function test_unsupportedFunction() public {
+    function test_unsupported_function() public {
         bytes4 fn = 0x00000000;
         bytes memory args = abi.encode(fn);
         vm.expectRevert(abi.encodeWithSelector(LitePsmJob.UnsupportedFunction.selector, fn));
         litePsmJob.work(NET_A, args);
     }
 
-    function test_nonMasterNetwork() public {
+    function test_non_master_network() public {
         bytes32 network = "ERROR";
         bytes memory args = abi.encode("0");
         vm.expectRevert(abi.encodeWithSelector(LitePsmJob.NotMaster.selector, network));
