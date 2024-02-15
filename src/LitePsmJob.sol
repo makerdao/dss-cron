@@ -32,7 +32,6 @@ interface LitePsmLike {
 
 /// @title Call flap when possible
 contract LitePsmJob is IJob {
-
     SequencerLike public immutable sequencer;
     LitePsmLike public immutable litePsm;
 
@@ -47,9 +46,14 @@ contract LitePsmJob is IJob {
     // --- Events ---
     event Work(bytes32 indexed network);
 
-    constructor(address _sequencer, LitePsmLike _litePsm, uint256 _rushThreshold,
-                uint256 _cutThreshold, uint256 _gushThreshold) {
-        sequencer   = SequencerLike(_sequencer);
+    constructor(
+        address _sequencer,
+        LitePsmLike _litePsm,
+        uint256 _rushThreshold,
+        uint256 _cutThreshold,
+        uint256 _gushThreshold
+    ) {
+        sequencer = SequencerLike(_sequencer);
         litePsm = _litePsm;
         rushThreshold = _rushThreshold;
         cutThreshold = _cutThreshold;
@@ -63,14 +67,11 @@ contract LitePsmJob is IJob {
 
         if (fn == litePsm.fill.selector && litePsm.rush() > rushThreshold) {
             litePsm.fill();
-        }
-        else if (fn == litePsm.chug.selector && litePsm.cut() > cutThreshold) {
+        } else if (fn == litePsm.chug.selector && litePsm.cut() > cutThreshold) {
             litePsm.chug();
-        }
-        else if  (fn == litePsm.trim.selector && litePsm.gush() > gushThreshold) {
+        } else if (fn == litePsm.trim.selector && litePsm.gush() > gushThreshold) {
             litePsm.trim();
-        }
-        else {
+        } else {
             revert UnsupportedFunction(fn);
         }
 
@@ -82,16 +83,12 @@ contract LitePsmJob is IJob {
 
         if (litePsm.rush() > rushThreshold) {
             return (true, abi.encode(litePsm.fill.selector));
-        }
-        else if (litePsm.cut() > cutThreshold) {
+        } else if (litePsm.cut() > cutThreshold) {
             return (true, abi.encode(litePsm.chug.selector));
-        }
-        else if (litePsm.gush() > gushThreshold) {
+        } else if (litePsm.gush() > gushThreshold) {
             return (true, abi.encode(litePsm.trim.selector));
-        }
-        else{
+        } else {
             return (false, bytes("No work to do"));
         }
-
     }
 }

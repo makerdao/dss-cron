@@ -43,12 +43,11 @@ interface VatLike {
     function debt() external view returns (uint256);
     function Line() external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
-    function file(bytes32 ilk, bytes32 what, uint data) external;
-    function file(bytes32 what, uint data) external;
+    function file(bytes32 ilk, bytes32 what, uint256 data) external;
+    function file(bytes32 what, uint256 data) external;
 }
 
 contract LitePsmJobIntegrationTest is DssCronBaseTest {
-
     using GodMode for *;
 
     uint256 constant MILLION_WAD = MILLION * WAD;
@@ -67,11 +66,12 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
     event Trim(uint256 wad);
     event Work(bytes32 indexed network);
 
-    function setUpSub() virtual override internal {
+    function setUpSub() internal virtual override {
         litePsm = LitePsm(dss.chainlog.getAddress("MCD_LITE_PSM_USDC_A"));
         pocket = dss.chainlog.getAddress("MCD_LITE_PSM_POCKET_USDC_A");
         dai = dss.chainlog.getAddress("MCD_DAI");
-        litePsmJob = new LitePsmJob(address(sequencer), LitePsmLike(address(litePsm)), MILLION_WAD, MILLION_WAD, MILLION_WAD);
+        litePsmJob =
+            new LitePsmJob(address(sequencer), LitePsmLike(address(litePsm)), MILLION_WAD, MILLION_WAD, MILLION_WAD);
         gem = litePsm.gem();
         ilk = litePsm.ilk();
         vat = litePsm.vat();
@@ -112,7 +112,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         assertEq(wad, 0, "rush() does not return 0");
     }
 
-     function test_chug() public {
+    function test_chug() public {
         // the dai balance of LitePsm must be greater than the urn's art for this ilk
         (, uint256 art) = VatLike(vat).urns(ilk, address(litePsm));
         deal(dai, address(litePsm), art + 1); //must be greater than art so we dont have underflow
@@ -133,8 +133,8 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
 
     function test_trim() public {
         (uint256 Art,,, uint256 line,) = VatLike(vat).ilks(ilk);
-         // Art must be greater than ilk line
-        uint256 newLine = (Art / 2)  * RAY;
+        // Art must be greater than ilk line
+        uint256 newLine = (Art / 2) * RAY;
         VatLike(vat).file(ilk, "line", newLine);
         (Art,,, line,) = VatLike(vat).ilks(ilk);
         // dai balance of LitePsm must be non-zero
@@ -161,11 +161,11 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         litePsmJob.work(NET_A, args);
         wad = litePsm.gush();
         assertEq(wad, 0, "gush() does not return 0");
-
     }
 
-    /***  Revert Test Cases ***/
-
+    /**
+     *  Revert Test Cases **
+     */
     function test_noWork() public {
         (bool canWork, bytes memory args) = litePsmJob.workable(NET_A);
         assertTrue(canWork == false, "workable() returns true");
@@ -185,5 +185,4 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
         vm.expectRevert(abi.encodeWithSelector(LitePsmJob.NotMaster.selector, network));
         litePsmJob.work(network, args);
     }
-
 }
