@@ -33,7 +33,7 @@ interface LitePsmLike {
 /// @title Call flap when possible
 contract LitePsmJob is IJob {
     SequencerLike public immutable sequencer;
-    LitePsmLike public immutable litePsm;
+    address public immutable litePsm;
 
     uint256 public immutable rushThreshold;
     uint256 public immutable cutThreshold;
@@ -48,7 +48,7 @@ contract LitePsmJob is IJob {
 
     constructor(
         address _sequencer,
-        LitePsmLike _litePsm,
+        address _litePsm,
         uint256 _rushThreshold,
         uint256 _cutThreshold,
         uint256 _gushThreshold
@@ -65,12 +65,12 @@ contract LitePsmJob is IJob {
 
         (bytes4 fn) = abi.decode(args, (bytes4));
 
-        if (fn == litePsm.fill.selector && litePsm.rush() > rushThreshold) {
-            litePsm.fill();
-        } else if (fn == litePsm.chug.selector && litePsm.cut() > cutThreshold) {
-            litePsm.chug();
-        } else if (fn == litePsm.trim.selector && litePsm.gush() > gushThreshold) {
-            litePsm.trim();
+        if (fn == LitePsmLike(litePsm).fill.selector && LitePsmLike(litePsm).rush() > rushThreshold) {
+            LitePsmLike(litePsm).fill();
+        } else if (fn == LitePsmLike(litePsm).chug.selector && LitePsmLike(litePsm).cut() > cutThreshold) {
+            LitePsmLike(litePsm).chug();
+        } else if (fn == LitePsmLike(litePsm).trim.selector && LitePsmLike(litePsm).gush() > gushThreshold) {
+            LitePsmLike(litePsm).trim();
         } else {
             revert UnsupportedFunction(fn);
         }
@@ -81,12 +81,12 @@ contract LitePsmJob is IJob {
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
 
-        if (litePsm.rush() > rushThreshold) {
-            return (true, abi.encode(litePsm.fill.selector));
-        } else if (litePsm.cut() > cutThreshold) {
-            return (true, abi.encode(litePsm.chug.selector));
-        } else if (litePsm.gush() > gushThreshold) {
-            return (true, abi.encode(litePsm.trim.selector));
+        if (LitePsmLike(litePsm).rush() > rushThreshold) {
+            return (true, abi.encode(LitePsmLike(litePsm).fill.selector));
+        } else if (LitePsmLike(litePsm).cut() > cutThreshold) {
+            return (true, abi.encode(LitePsmLike(litePsm).chug.selector));
+        } else if (LitePsmLike(litePsm).gush() > gushThreshold) {
+            return (true, abi.encode(LitePsmLike(litePsm).trim.selector));
         } else {
             return (false, bytes("No work to do"));
         }

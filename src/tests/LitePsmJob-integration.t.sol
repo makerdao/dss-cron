@@ -18,10 +18,9 @@ pragma solidity 0.8.13;
 import "forge-std/Test.sol";
 import "./DssCronBase.t.sol";
 
-import {LitePsmLike} from "../LitePsmJob.sol";
 import {LitePsmJob} from "../LitePsmJob.sol";
 
-interface LitePsm {
+interface LitePsmLike {
     function chug() external returns (uint256 wad);
     function cut() external view returns (uint256 wad);
     function file(bytes32 what, uint256 data) external;
@@ -52,7 +51,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
 
     uint256 constant MILLION_WAD = MILLION * WAD;
 
-    LitePsm public litePsm;
+    LitePsmLike public litePsm;
     LitePsmJob public litePsmJob;
     address public gem;
     address public dai;
@@ -67,11 +66,11 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
     event Work(bytes32 indexed network, bytes4 indexed action);
 
     function setUpSub() internal virtual override {
-        litePsm = LitePsm(dss.chainlog.getAddress("MCD_LITE_PSM_USDC_A"));
+        litePsm = LitePsmLike(dss.chainlog.getAddress("MCD_LITE_PSM_USDC_A"));
         pocket = dss.chainlog.getAddress("MCD_LITE_PSM_POCKET_USDC_A");
         dai = dss.chainlog.getAddress("MCD_DAI");
         litePsmJob =
-            new LitePsmJob(address(sequencer), LitePsmLike(address(litePsm)), MILLION_WAD, MILLION_WAD, MILLION_WAD);
+            new LitePsmJob(address(sequencer), address(litePsm), MILLION_WAD, MILLION_WAD, MILLION_WAD);
         gem = litePsm.gem();
         ilk = litePsm.ilk();
         vat = litePsm.vat();
