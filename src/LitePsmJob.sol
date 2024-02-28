@@ -67,13 +67,13 @@ contract LitePsmJob is IJob {
         (bytes4 fn) = abi.decode(args, (bytes4));
 
         if (fn == litePsm.fill.selector) {
-            if (litePsm.rush() > rushThreshold) litePsm.fill();
+            if (litePsm.rush() >= rushThreshold) litePsm.fill();
             else revert ThresholdNotReached(fn);
         } else if (fn == litePsm.chug.selector) {
-            if(litePsm.cut() > cutThreshold) litePsm.chug();
+            if(litePsm.cut() >= cutThreshold) litePsm.chug();
             else revert ThresholdNotReached(fn);
         } else if (fn == litePsm.trim.selector) {
-            if (litePsm.gush() > gushThreshold) litePsm.trim();
+            if (litePsm.gush() >= gushThreshold) litePsm.trim();
             else revert ThresholdNotReached(fn);
         } else {
             revert UnsupportedFunction(fn);
@@ -85,11 +85,11 @@ contract LitePsmJob is IJob {
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
 
-        if (litePsm.rush() > rushThreshold) {
+        if (litePsm.rush() >= rushThreshold) {
             return (true, abi.encode(litePsm.fill.selector));
-        } else if (litePsm.cut() > cutThreshold) {
+        } else if (litePsm.cut() >= cutThreshold) {
             return (true, abi.encode(litePsm.chug.selector));
-        } else if (litePsm.gush() > gushThreshold) {
+        } else if (litePsm.gush() >= gushThreshold) {
             return (true, abi.encode(litePsm.trim.selector));
         } else {
             return (false, bytes("No work to do"));
