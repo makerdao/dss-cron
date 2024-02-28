@@ -174,14 +174,28 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
     function test_unsupported_function() public {
         bytes4 fn = 0x00000000;
         bytes memory args = abi.encode(fn);
-        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.UnsupportedFunctionOrThresholdNotReached.selector, fn));
+        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.UnsupportedFunction.selector, fn));
         litePsmJob.work(NET_A, args);
     }
 
-    function test_unreached_threshold() public {
+    function test_unreached_threshold_fill() public {
         bytes4 fn = litePsm.fill.selector;
         bytes memory args = abi.encode(fn);
-        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.UnsupportedFunctionOrThresholdNotReached.selector, fn));
+        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.ThresholdNotReached.selector, fn));
+        litePsmJob.work(NET_A, args);
+    }
+
+    function test_unreached_threshold_chug() public {
+        bytes4 fn = litePsm.chug.selector;
+        bytes memory args = abi.encode(fn);
+        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.ThresholdNotReached.selector, fn));
+        litePsmJob.work(NET_A, args);
+    }
+
+    function test_unreached_threshold_trim() public {
+        bytes4 fn = litePsm.trim.selector;
+        bytes memory args = abi.encode(fn);
+        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.ThresholdNotReached.selector, fn));
         litePsmJob.work(NET_A, args);
     }
 

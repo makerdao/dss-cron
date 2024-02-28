@@ -41,7 +41,8 @@ contract LitePsmJob is IJob {
 
     // --- Errors ---
     error NotMaster(bytes32 network);
-    error UnsupportedFunctionOrThresholdNotReached(bytes4 fn);
+    error ThresholdNotReached(bytes4 fn);
+    error UnsupportedFunction(bytes4 fn);
 
     // --- Events ---
     event Work(bytes32 indexed network, bytes4 indexed action);
@@ -65,14 +66,17 @@ contract LitePsmJob is IJob {
 
         (bytes4 fn) = abi.decode(args, (bytes4));
 
-        if (fn == litePsm.fill.selector && litePsm.rush() > rushThreshold) {
-            litePsm.fill();
-        } else if (fn == litePsm.chug.selector && litePsm.cut() > cutThreshold) {
-            litePsm.chug();
-        } else if (fn == litePsm.trim.selector && litePsm.gush() > gushThreshold) {
-            litePsm.trim();
+        if (fn == litePsm.fill.selector) {
+            if (litePsm.rush() > rushThreshold) litePsm.fill();
+            else revert ThresholdNotReached(fn);
+        } else if (fn == litePsm.chug.selector) {
+            if(litePsm.cut() > cutThreshold) litePsm.chug();
+            else revert ThresholdNotReached(fn);
+        } else if (fn == litePsm.trim.selector) {
+            if (litePsm.gush() > gushThreshold) litePsm.trim();
+            else revert ThresholdNotReached(fn);
         } else {
-            revert UnsupportedFunctionOrThresholdNotReached(fn);
+            revert UnsupportedFunction(fn);
         }
 
         emit Work(network, fn);
