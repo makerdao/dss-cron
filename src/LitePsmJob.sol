@@ -41,7 +41,7 @@ contract LitePsmJob is IJob {
 
     // --- Errors ---
     error NotMaster(bytes32 network);
-    error UnsupportedFunction(bytes4 fn);
+    error UnsupportedFunctionOrThresholdNotReached(bytes4 fn);
 
     // --- Events ---
     event Work(bytes32 indexed network, bytes4 indexed action);
@@ -72,7 +72,7 @@ contract LitePsmJob is IJob {
         } else if (fn == litePsm.trim.selector && litePsm.gush() > gushThreshold) {
             litePsm.trim();
         } else {
-            revert UnsupportedFunction(fn);
+            revert UnsupportedFunctionOrThresholdNotReached(fn);
         }
 
         emit Work(network, fn);

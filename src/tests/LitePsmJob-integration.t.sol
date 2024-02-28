@@ -174,7 +174,14 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
     function test_unsupported_function() public {
         bytes4 fn = 0x00000000;
         bytes memory args = abi.encode(fn);
-        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.UnsupportedFunction.selector, fn));
+        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.UnsupportedFunctionOrThresholdNotReached.selector, fn));
+        litePsmJob.work(NET_A, args);
+    }
+
+    function test_unreached_threshold() public {
+        bytes4 fn = litePsm.fill.selector;
+        bytes memory args = abi.encode(fn);
+        vm.expectRevert(abi.encodeWithSelector(LitePsmJob.UnsupportedFunctionOrThresholdNotReached.selector, fn));
         litePsmJob.work(NET_A, args);
     }
 
