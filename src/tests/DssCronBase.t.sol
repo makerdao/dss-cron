@@ -41,11 +41,11 @@ abstract contract DssCronBaseTest is DSSTest {
 
     function setUp() public {
         dss = MCD.loadFromChainlog(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
-        
+
         sequencer = new Sequencer();
 
         ilkRegistry = IlkRegistryAbstract(dss.chainlog.getAddress("ILK_REGISTRY"));
-        
+
         // Add a default network
         sequencer.addNetwork(NET_A, 13);
         assertEq(sequencer.totalWindowSize(), 13);
@@ -55,7 +55,7 @@ abstract contract DssCronBaseTest is DSSTest {
 
         // Add a default user
         user = dss.newUser();
-        
+
         setUpSub();
     }
 
