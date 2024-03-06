@@ -69,7 +69,7 @@ contract AutoMaxLineJob is IJob {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
 
         (uint256 oldMaxLine, uint256 newMaxLine, uint256 debt,,) = automaxline.exec();
-        (, uint256 gap,,,) = autoline.ilks(ilk); // TODO: should we return gap as well from automaxline to avoid this extra read?
+        (, uint256 gap,,,) = autoline.ilks(ilk);
 
         // Execution is not enough
         // We need to be over the threshold amounts
