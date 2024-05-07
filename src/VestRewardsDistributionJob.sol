@@ -27,9 +27,9 @@ interface DssVestWithGemLike {
 }
 
 interface VestedRewardsDistributionLike {
-    function vestId() external view returns (uint256);
-    function dssVest() external view returns (DssVestWithGemLike);
     function distribute() external returns (uint256 amount);
+    function dssVest() external view returns (DssVestWithGemLike);
+    function vestId() external view returns (uint256);
 }
 
 /// @title Call distribute() when possible
@@ -60,6 +60,7 @@ contract VestRewardsDistributionJob is IJob {
     SequencerLike public immutable sequencer;
 
     // --- Errors ---
+    error NothingToDistribute();
     error NotMaster(bytes32 network);
     error RewardDistributionExists(address farm);
     error RewardDistributionDoesNotExist(address farm);
@@ -95,10 +96,15 @@ contract VestRewardsDistributionJob is IJob {
 
         (address[] memory vestingfarms) = abi.decode(args, (address[]));
 
+        if (vestingfarms.length > 0){
         for (uint256 i = 0; i < vestingfarms.length; i++) {
             VestedRewardsDistributionLike(vestingfarms[i]).distribute();
         }
         emit Work(network);
+        }
+        else {
+            revert NothingToDistribute();
+        }
     }
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
