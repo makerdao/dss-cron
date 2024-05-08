@@ -166,10 +166,12 @@ contract VestRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         vestRewardsDistributionJob.work(network, args);
     }
     function test_work_random_distribution() public {
-        address[] memory rewDistributions = new address[](1);
-        rewDistributions[0] = address(42);
+        address[] memory rewDistributions = new address[](3);
+        rewDistributions[0] = vestedRewardsDist1;
+        rewDistributions[1] = vestedRewardsDist2;
+        rewDistributions[2] = address(42);
         bytes memory args = abi.encode(rewDistributions);
-        vm.expectRevert(abi.encodeWithSelector(VestRewardsDistributionJob.RewardDistributionDoesNotExist.selector, rewDistributions[0]));
+        vm.expectRevert(abi.encodeWithSelector(VestRewardsDistributionJob.RewardDistributionDoesNotExist.selector, rewDistributions[2]));
         vestRewardsDistributionJob.work(NET_A, args);
     }
 
