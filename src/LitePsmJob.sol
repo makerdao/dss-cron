@@ -30,7 +30,7 @@ interface LitePsmLike {
     function trim() external returns (uint256 wad);
 }
 
-/// @title Call fill/chug/trim when possible
+/// @title Call flap when possible
 contract LitePsmJob is IJob {
     SequencerLike public immutable sequencer;
     LitePsmLike public immutable litePsm;
