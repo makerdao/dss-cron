@@ -66,7 +66,7 @@ contract VestRewardsDistributionJob is IJob {
     error RewardDistributionDoesNotExist(address farm);
 
     // --- Events ---
-    event Work(bytes32 indexed network);
+    event Work(bytes32 indexed network, address[] rewDist, uint[] distAmounts);
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event AddRewardDistribution(address indexed rewdist);
@@ -94,13 +94,17 @@ contract VestRewardsDistributionJob is IJob {
     function work(bytes32 network, bytes calldata args) public {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
 
-        (address[] memory vestingfarms) = abi.decode(args, (address[]));
+        (address[] memory rewDistributions) = abi.decode(args, (address[]));
 
-        if (vestingfarms.length > 0){
-        for (uint256 i = 0; i < vestingfarms.length; i++) {
-            VestedRewardsDistributionLike(vestingfarms[i]).distribute();
-        }
-        emit Work(network);
+        if (rewDistributions.length > 0){
+            uint256[] memory distAmounts = new uint256[](rewDistributions.length);
+            for (uint256 i = 0; i < rewDistributions.length; i++) {
+                address rewDist = rewDistributions[i];
+                // prevent keeper from calling random contracts having distribute()
+                if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
+                distAmounts[i] = VestedRewardsDistributionLike(rewDistributions[i]).distribute();
+            }
+            emit Work(network, rewDistributions, distAmounts);
         }
         else {
             revert NothingToDistribute();
@@ -112,18 +116,26 @@ contract VestRewardsDistributionJob is IJob {
 
         uint256 distributionsLen = distributions.length();
         if (distributionsLen > 0) {
-            address[] memory vestingFarms = new address[](distributionsLen);
+            address[] memory distributable = new address[](distributionsLen);
+            uint256 numFarms;
             for (uint256 i = 0; i < distributionsLen; i++) {
-                address farm = distributions.at(i);
-                uint256 vestId = VestedRewardsDistributionLike(farm).vestId();
-                DssVestWithGemLike dssVest = VestedRewardsDistributionLike(farm).dssVest();
+                address rewDist = distributions.at(i);
+                uint256 vestId = VestedRewardsDistributionLike(rewDist).vestId();
+                DssVestWithGemLike dssVest = VestedRewardsDistributionLike(rewDist).dssVest();
                 uint256 amount = dssVest.unpaid(vestId);
-                if (amount > 0)
-                    vestingFarms[i] = farm;
-                else
-                    vestingFarms[i] = address(0);
+                if (amount > 0) {
+                    ++numFarms;
+                    distributable[i] = rewDist;
+                }
             }
-            return (true, abi.encode(vestingFarms));
+            address[] memory rewDistributions = new address[](numFarms);
+            uint256 j;
+            for (uint256 i = 0; i < distributionsLen; i++) {
+                if (distributable[i] != address(0)){
+                    rewDistributions[j++] = distributable[i];
+                }
+            }
+            return (true, abi.encode(rewDistributions));
 
         }
         else {
