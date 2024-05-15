@@ -150,6 +150,7 @@ contract VestRewardsDistributionJob is IJob {
                     }
                 }
             }
+            if (distributable == address(0)) return (false, bytes("No distribution"));
             return (true, abi.encode(distributable));
 
         }
