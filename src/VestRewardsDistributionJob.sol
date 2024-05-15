@@ -29,6 +29,7 @@ interface DssVestWithGemLike {
 interface VestedRewardsDistributionLike {
     function distribute() external returns (uint256 amount);
     function dssVest() external view returns (DssVestWithGemLike);
+    function lastDistributedAt() external view returns (uint256);
     function vestId() external view returns (uint256);
 }
 
@@ -55,60 +56,75 @@ contract VestRewardsDistributionJob is IJob {
         _;
     }
 
-    EnumerableSet.AddressSet private distributions;
+    uint256 constant timeMagicNumber = 5 * 52 weeks; // 5 years
 
+    uint256 public immutable minimumDelay;
     SequencerLike public immutable sequencer;
 
+
+    EnumerableSet.AddressSet private distributions;
+
+
+    mapping(address => uint256) public distributionDelays;
+
     // --- Errors ---
-    error NothingToDistribute();
+    error CannotDistributeYet(address rewDist);
+    error LessThanMinimumDelay(uint256 delay);
     error NotMaster(bytes32 network);
-    error RewardDistributionExists(address farm);
-    error RewardDistributionDoesNotExist(address farm);
+    error RewardDistributionExists(address rewDist);
+    error RewardDistributionDoesNotExist(address rewDist);
 
     // --- Events ---
-    event Work(bytes32 indexed network, address[] rewDist, uint[] distAmounts);
+    event Work(bytes32 indexed network, address rewDist, uint distAmounts);
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event AddRewardDistribution(address indexed rewdist);
+    event AddRewardDistribution(address indexed rewDist, uint256 delay);
     event RemoveRewardDistribution(address indexed rewDist);
+    event ModifiedDistributionDelay(address indexed rewDist, uint256 delay);
 
     constructor(
-        address _sequencer
+        address _sequencer,
+        uint256 _minimumDelay
     ) {
         sequencer = SequencerLike(_sequencer);
+        minimumDelay = _minimumDelay;
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
     // --- Reward Distribution Admin ---
-    function addRewardDistribution(address rewdist) external auth {
-        if (!distributions.add(rewdist)) revert RewardDistributionExists(rewdist);
-        emit AddRewardDistribution(rewdist);
+    function addRewardDistribution(address rewDist, uint256 delay) external auth {
+        if (!distributions.add(rewDist)) revert RewardDistributionExists(rewDist);
+        if (delay < minimumDelay) revert LessThanMinimumDelay(delay);
+        distributionDelays[rewDist] = delay;
+        emit AddRewardDistribution(rewDist, delay);
     }
 
-    function removeRewardDistribution(address rewdist) external auth {
-        if (!distributions.remove(rewdist)) revert RewardDistributionDoesNotExist(rewdist);
-        emit RemoveRewardDistribution(rewdist);
+    function removeRewardDistribution(address rewDist) external auth {
+        if (!distributions.remove(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
+        delete distributionDelays[rewDist];
+        emit RemoveRewardDistribution(rewDist);
+    }
+
+    function modifyDistributionDelay(address rewDist, uint256 delay) external auth {
+        if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
+        if (delay < minimumDelay) revert LessThanMinimumDelay(delay);
+        distributionDelays[rewDist] = delay;
+        emit ModifiedDistributionDelay(rewDist, delay);
     }
 
     function work(bytes32 network, bytes calldata args) public {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
 
-        (address[] memory rewDistributions) = abi.decode(args, (address[]));
+        (address rewDist) = abi.decode(args, (address));
 
-        if (rewDistributions.length > 0){
-            uint256[] memory distAmounts = new uint256[](rewDistributions.length);
-            for (uint256 i = 0; i < rewDistributions.length; i++) {
-                address rewDist = rewDistributions[i];
-                // prevent keeper from calling random contracts having distribute()
-                if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
-                distAmounts[i] = VestedRewardsDistributionLike(rewDistributions[i]).distribute();
-            }
-            emit Work(network, rewDistributions, distAmounts);
-        }
-        else {
-            revert NothingToDistribute();
-        }
+        // prevent keeper from calling random contracts having distribute()
+        if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
+        // ensure that the right delay has elapsed
+        if (!canDistribute(rewDist)) revert CannotDistributeYet(rewDist);
+        // we omit checking the unpaid amount because if it is 0 it will revert during distribute()
+        uint256 distAmount = VestedRewardsDistributionLike(rewDist).distribute();
+        emit Work(network, rewDist, distAmount);
     }
 
     function workable(bytes32 network) external view override returns (bool, bytes memory) {
@@ -116,26 +132,27 @@ contract VestRewardsDistributionJob is IJob {
 
         uint256 distributionsLen = distributions.length();
         if (distributionsLen > 0) {
-            address[] memory distributable = new address[](distributionsLen);
-            uint256 numFarms;
+            address distributable;
+            // this is used to find the distribute() than could have been called the earliest
+            // we use a hack that ensures the right functionality while avoiding an extra check for 0 value
+            uint256 earliestDistCall = block.timestamp + timeMagicNumber;
             for (uint256 i = 0; i < distributionsLen; i++) {
                 address rewDist = distributions.at(i);
-                uint256 vestId = VestedRewardsDistributionLike(rewDist).vestId();
-                DssVestWithGemLike dssVest = VestedRewardsDistributionLike(rewDist).dssVest();
-                uint256 amount = dssVest.unpaid(vestId);
-                if (amount > 0) {
-                    ++numFarms;
-                    distributable[i] = rewDist;
+                // get the last time distribute() was called
+                uint256 distTimestamp = VestedRewardsDistributionLike(rewDist).lastDistributedAt();
+                // calculate when distribute() is allowed to be called next
+                uint256 nextDistCall = distTimestamp + distributionDelays[rewDist];
+                if (canDistribute(rewDist)) {
+                    uint256 vestId = VestedRewardsDistributionLike(rewDist).vestId();
+                    DssVestWithGemLike dssVest = VestedRewardsDistributionLike(rewDist).dssVest();
+                    uint256 amount = dssVest.unpaid(vestId);
+                    if (amount > 0){
+                        if (nextDistCall < earliestDistCall)
+                            distributable = rewDist;
+                    }
                 }
             }
-            address[] memory rewDistributions = new address[](numFarms);
-            uint256 j;
-            for (uint256 i = 0; i < distributionsLen; i++) {
-                if (distributable[i] != address(0)){
-                    rewDistributions[j++] = distributable[i];
-                }
-            }
-            return (true, abi.encode(rewDistributions));
+            return (true, abi.encode(distributable));
 
         }
         else {
@@ -147,4 +164,16 @@ contract VestRewardsDistributionJob is IJob {
         return distributions.contains(rewDist);
     }
 
+    function canDistribute(address rewDist) internal view returns (bool) {
+        // get the last time distribute() was called
+        uint256 distTimestamp = VestedRewardsDistributionLike(rewDist).lastDistributedAt();
+        // calculate when distribute() is allowed to be called next
+        uint256 nextDistCall = distTimestamp + distributionDelays[rewDist];
+        if (nextDistCall > block.timestamp) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
 }
