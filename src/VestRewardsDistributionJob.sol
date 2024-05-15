@@ -166,8 +166,8 @@ contract VestRewardsDistributionJob is IJob {
         // get the last time distribute() was called
         uint256 distTimestamp = VestedRewardsDistributionLike(rewDist).lastDistributedAt();
         if (distTimestamp == 0){
-            // first ditribution, we allow to be distributed after the required delay
-            return block.timestamp + distributionDelays[rewDist];
+            // first ditribution, we allow to be distributed immediately so there is deadlock
+            return block.timestamp - 1;
         }
         else{
             // calculate when distribute() is allowed to be called next and return the value
