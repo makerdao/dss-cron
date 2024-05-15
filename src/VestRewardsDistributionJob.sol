@@ -121,7 +121,7 @@ contract VestRewardsDistributionJob is IJob {
         // prevent keeper from calling random contracts having distribute()
         if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
         // ensure that the right delay has elapsed
-        if (!canDistribute(rewDist)) revert CannotDistributeYet(rewDist);
+        if (canDistributeAfter(rewDist) >= block.timestamp) revert CannotDistributeYet(rewDist);
         // we omit checking the unpaid amount because if it is 0 it will revert during distribute()
         uint256 distAmount = VestedRewardsDistributionLike(rewDist).distribute();
         emit Work(network, rewDist, distAmount);
@@ -138,11 +138,9 @@ contract VestRewardsDistributionJob is IJob {
             uint256 earliestDistCall = block.timestamp + timeMagicNumber;
             for (uint256 i = 0; i < distributionsLen; i++) {
                 address rewDist = distributions.at(i);
-                // get the last time distribute() was called
-                uint256 distTimestamp = VestedRewardsDistributionLike(rewDist).lastDistributedAt();
-                // calculate when distribute() is allowed to be called next
-                uint256 nextDistCall = distTimestamp + distributionDelays[rewDist];
-                if (canDistribute(rewDist)) {
+                uint256 nextDistCall = canDistributeAfter(rewDist);
+                // timestamp should be strictly greater than nextDistCall
+                if (nextDistCall < block.timestamp) {
                     uint256 vestId = VestedRewardsDistributionLike(rewDist).vestId();
                     DssVestWithGemLike dssVest = VestedRewardsDistributionLike(rewDist).dssVest();
                     uint256 amount = dssVest.unpaid(vestId);
@@ -164,16 +162,16 @@ contract VestRewardsDistributionJob is IJob {
         return distributions.contains(rewDist);
     }
 
-    function canDistribute(address rewDist) internal view returns (bool) {
+    function canDistributeAfter(address rewDist) internal view returns (uint256) {
         // get the last time distribute() was called
         uint256 distTimestamp = VestedRewardsDistributionLike(rewDist).lastDistributedAt();
-        // calculate when distribute() is allowed to be called next
-        uint256 nextDistCall = distTimestamp + distributionDelays[rewDist];
-        if (nextDistCall > block.timestamp) {
-            return true;
+        if (distTimestamp == 0){
+            // first ditribution, we allow to be distributed after the required delay
+            return block.timestamp + distributionDelays[rewDist];
         }
-        else {
-            return false;
+        else{
+            // calculate when distribute() is allowed to be called next and return the value
+            return distTimestamp + distributionDelays[rewDist];
         }
     }
 }
