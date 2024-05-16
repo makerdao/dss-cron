@@ -18,6 +18,7 @@ pragma solidity 0.8.13;
 import {IJob} from "./interfaces/IJob.sol";
 import "./utils/EnumerableSet.sol";
 
+
 interface SequencerLike {
     function isMaster(bytes32 network) external view returns (bool);
 }
@@ -145,8 +146,10 @@ contract VestRewardsDistributionJob is IJob {
                     DssVestWithGemLike dssVest = VestedRewardsDistributionLike(rewDist).dssVest();
                     uint256 amount = dssVest.unpaid(vestId);
                     if (amount > 0){
-                        if (nextDistCall < earliestDistCall)
+                        if (nextDistCall < earliestDistCall){
+                            earliestDistCall = nextDistCall;
                             distributable = rewDist;
+                        }
                     }
                 }
             }
