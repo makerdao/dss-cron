@@ -67,6 +67,7 @@ contract VestRewardsDistributionJob is IJob {
 
     // --- Errors ---
     error CannotDistributeYet(address rewDist);
+    error NoArgs();
     error NotMaster(bytes32 network);
     error RewardDistributionExists(address rewDist);
     error RewardDistributionDoesNotExist(address rewDist);
@@ -106,6 +107,7 @@ contract VestRewardsDistributionJob is IJob {
 
     function work(bytes32 network, bytes calldata args) public {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
+        if (args.length == 0) revert NoArgs();
 
         (address rewDist) = abi.decode(args, (address));
 
