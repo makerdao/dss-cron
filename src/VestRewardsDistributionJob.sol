@@ -57,20 +57,18 @@ contract VestRewardsDistributionJob is IJob {
         _;
     }
 
-    uint256 constant timeMagicNumber = 5 * 52 weeks; // 5 years
-
-    uint256 public immutable minimumDelay;
+    uint256 public immutable minimumInterval;
     SequencerLike public immutable sequencer;
 
 
     EnumerableSet.AddressSet private distributions;
 
 
-    mapping(address => uint256) public distributionDelays;
+    mapping(address => uint256) public distributionIntervals;
 
     // --- Errors ---
     error CannotDistributeYet(address rewDist);
-    error LessThanMinimumDelay(uint256 delay);
+    error LessThanMinimumInterval(uint256 interval);
     error NotMaster(bytes32 network);
     error RewardDistributionExists(address rewDist);
     error RewardDistributionDoesNotExist(address rewDist);
@@ -79,39 +77,39 @@ contract VestRewardsDistributionJob is IJob {
     event Work(bytes32 indexed network, address rewDist, uint distAmounts);
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event AddRewardDistribution(address indexed rewDist, uint256 delay);
+    event AddRewardDistribution(address indexed rewDist, uint256 interval);
     event RemoveRewardDistribution(address indexed rewDist);
-    event ModifiedDistributionDelay(address indexed rewDist, uint256 delay);
+    event ModifiedDistributionInterval(address indexed rewDist, uint256 interval);
 
     constructor(
         address _sequencer,
-        uint256 _minimumDelay
+        uint256 _minimumInterval
     ) {
         sequencer = SequencerLike(_sequencer);
-        minimumDelay = _minimumDelay;
+        minimumInterval = _minimumInterval;
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
     // --- Reward Distribution Admin ---
-    function addRewardDistribution(address rewDist, uint256 delay) external auth {
+    function addRewardDistribution(address rewDist, uint256 interval) external auth {
         if (!distributions.add(rewDist)) revert RewardDistributionExists(rewDist);
-        if (delay < minimumDelay) revert LessThanMinimumDelay(delay);
-        distributionDelays[rewDist] = delay;
-        emit AddRewardDistribution(rewDist, delay);
+        if (interval < minimumInterval) revert LessThanMinimumInterval(interval);
+        distributionIntervals[rewDist] = interval;
+        emit AddRewardDistribution(rewDist, interval);
     }
 
     function removeRewardDistribution(address rewDist) external auth {
         if (!distributions.remove(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
-        delete distributionDelays[rewDist];
+        delete distributionIntervals[rewDist];
         emit RemoveRewardDistribution(rewDist);
     }
 
-    function modifyDistributionDelay(address rewDist, uint256 delay) external auth {
+    function modifyDistributionInterval(address rewDist, uint256 interval) external auth {
         if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
-        if (delay < minimumDelay) revert LessThanMinimumDelay(delay);
-        distributionDelays[rewDist] = delay;
-        emit ModifiedDistributionDelay(rewDist, delay);
+        if (interval < minimumInterval) revert LessThanMinimumInterval(interval);
+        distributionIntervals[rewDist] = interval;
+        emit ModifiedDistributionInterval(rewDist, interval);
     }
 
     function work(bytes32 network, bytes calldata args) public {
@@ -121,8 +119,8 @@ contract VestRewardsDistributionJob is IJob {
 
         // prevent keeper from calling random contracts having distribute()
         if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
-        // ensure that the right delay has elapsed
-        if (canDistributeAfter(rewDist) >= block.timestamp) revert CannotDistributeYet(rewDist);
+        // ensure that the right time has elapsed
+        if (canDistribute(rewDist)) revert CannotDistributeYet(rewDist);
         // we omit checking the unpaid amount because if it is 0 it will revert during distribute()
         uint256 distAmount = VestedRewardsDistributionLike(rewDist).distribute();
         emit Work(network, rewDist, distAmount);
@@ -134,22 +132,14 @@ contract VestRewardsDistributionJob is IJob {
         uint256 distributionsLen = distributions.length();
         if (distributionsLen > 0) {
             address distributable;
-            // this is used to find the distribute() than could have been called the earliest
-            // we use a hack that ensures the right functionality while avoiding an extra check for 0 value
-            uint256 earliestDistCall = block.timestamp + timeMagicNumber;
             for (uint256 i = 0; i < distributionsLen; i++) {
                 address rewDist = distributions.at(i);
-                uint256 nextDistCall = canDistributeAfter(rewDist);
-                // timestamp should be strictly greater than nextDistCall
-                if (nextDistCall < block.timestamp) {
+                if (canDistribute(rewDist)) {
                     uint256 vestId = VestedRewardsDistributionLike(rewDist).vestId();
                     DssVestWithGemLike dssVest = VestedRewardsDistributionLike(rewDist).dssVest();
                     uint256 amount = dssVest.unpaid(vestId);
                     if (amount > 0){
-                        if (nextDistCall < earliestDistCall){
-                            earliestDistCall = nextDistCall;
-                            distributable = rewDist;
-                        }
+                        distributable = rewDist;
                     }
                 }
             }
@@ -166,16 +156,13 @@ contract VestRewardsDistributionJob is IJob {
         return distributions.contains(rewDist);
     }
 
-    function canDistributeAfter(address rewDist) internal view returns (uint256) {
+    function canDistribute(address rewDist) internal view returns (bool) {
         // get the last time distribute() was called
         uint256 distTimestamp = VestedRewardsDistributionLike(rewDist).lastDistributedAt();
-        if (distTimestamp == 0){
-            // first ditribution, we allow to be distributed immediately so there is deadlock
-            return block.timestamp - 1;
+        // if distTimestamp == 0 (first ditribution), we allow to be distributed immediately
+        if (distTimestamp + distributionIntervals[rewDist] > block.timestamp || distTimestamp == 0){
+            return true;
         }
-        else{
-            // calculate when distribute() is allowed to be called next and return the value
-            return distTimestamp + distributionDelays[rewDist];
-        }
+        return false;
     }
 }
