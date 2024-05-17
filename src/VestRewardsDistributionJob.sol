@@ -112,7 +112,7 @@ contract VestRewardsDistributionJob is IJob {
         // prevent keeper from calling random contracts having distribute()
         if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
         // ensure that the right time has elapsed
-        if (canDistribute(rewDist)) revert CannotDistributeYet(rewDist);
+        if (!canDistribute(rewDist)) revert CannotDistributeYet(rewDist);
         // we omit checking the unpaid amount because if it is 0 it will revert during distribute()
         uint256 distAmount = VestedRewardsDistributionLike(rewDist).distribute();
         emit Work(network, rewDist, distAmount);
@@ -123,25 +123,13 @@ contract VestRewardsDistributionJob is IJob {
 
         uint256 distributionsLen = distributions.length();
         if (distributionsLen > 0) {
-            address distributable;
             for (uint256 i = 0; i < distributionsLen; i++) {
                 address rewDist = distributions.at(i);
-                if (canDistribute(rewDist)) {
-                    uint256 vestId = VestedRewardsDistributionLike(rewDist).vestId();
-                    DssVestWithGemLike dssVest = VestedRewardsDistributionLike(rewDist).dssVest();
-                    uint256 amount = dssVest.unpaid(vestId);
-                    if (amount > 0){
-                        distributable = rewDist;
-                    }
-                }
+                if (canDistribute(rewDist)) return (true, abi.encode(rewDist));
             }
-            if (distributable == address(0)) return (false, bytes("No distribution"));
-            return (true, abi.encode(distributable));
-
+            return (false, bytes("No distribution"));
         }
-        else {
-            return (false, bytes("No farms"));
-        }
+        return (false, bytes("No farms"));
     }
 
     function rewardDistributionActive(address rewDist) public view returns (bool) {
@@ -152,8 +140,10 @@ contract VestRewardsDistributionJob is IJob {
         // get the last time distribute() was called
         uint256 distTimestamp = VestedRewardsDistributionLike(rewDist).lastDistributedAt();
         // if distTimestamp == 0 (first ditribution), we allow to be distributed immediately
-        if (distTimestamp + distributionIntervals[rewDist] > block.timestamp || distTimestamp == 0){
-            return true;
+        if (distTimestamp + distributionIntervals[rewDist] > block.timestamp || distTimestamp == 0) {
+            uint256 vestId = VestedRewardsDistributionLike(rewDist).vestId();
+            DssVestWithGemLike dssVest = VestedRewardsDistributionLike(rewDist).dssVest();
+            if (dssVest.unpaid(vestId) > 0) return true;
         }
         return false;
     }
