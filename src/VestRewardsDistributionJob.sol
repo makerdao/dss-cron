@@ -57,7 +57,6 @@ contract VestRewardsDistributionJob is IJob {
         _;
     }
 
-    uint256 public immutable minimumInterval;
     SequencerLike public immutable sequencer;
 
 
@@ -68,7 +67,6 @@ contract VestRewardsDistributionJob is IJob {
 
     // --- Errors ---
     error CannotDistributeYet(address rewDist);
-    error LessThanMinimumInterval(uint256 interval);
     error NotMaster(bytes32 network);
     error RewardDistributionExists(address rewDist);
     error RewardDistributionDoesNotExist(address rewDist);
@@ -81,12 +79,8 @@ contract VestRewardsDistributionJob is IJob {
     event RemoveRewardDistribution(address indexed rewDist);
     event ModifiedDistributionInterval(address indexed rewDist, uint256 interval);
 
-    constructor(
-        address _sequencer,
-        uint256 _minimumInterval
-    ) {
+    constructor(address _sequencer) {
         sequencer = SequencerLike(_sequencer);
-        minimumInterval = _minimumInterval;
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
@@ -94,7 +88,6 @@ contract VestRewardsDistributionJob is IJob {
     // --- Reward Distribution Admin ---
     function addRewardDistribution(address rewDist, uint256 interval) external auth {
         if (!distributions.add(rewDist)) revert RewardDistributionExists(rewDist);
-        if (interval < minimumInterval) revert LessThanMinimumInterval(interval);
         distributionIntervals[rewDist] = interval;
         emit AddRewardDistribution(rewDist, interval);
     }
@@ -107,7 +100,6 @@ contract VestRewardsDistributionJob is IJob {
 
     function modifyDistributionInterval(address rewDist, uint256 interval) external auth {
         if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
-        if (interval < minimumInterval) revert LessThanMinimumInterval(interval);
         distributionIntervals[rewDist] = interval;
         emit ModifiedDistributionInterval(rewDist, interval);
     }
