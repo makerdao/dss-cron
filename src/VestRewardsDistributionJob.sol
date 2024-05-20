@@ -36,7 +36,6 @@ interface VestedRewardsDistributionLike {
 
 /// @title Call distribute() when possible
 contract VestRewardsDistributionJob is IJob {
-
     using EnumerableSet for EnumerableSet.AddressSet;
 
     // --- Auth ---
@@ -58,12 +57,9 @@ contract VestRewardsDistributionJob is IJob {
     }
 
     SequencerLike public immutable sequencer;
-
+    mapping(address => uint256) public distributionIntervals;
 
     EnumerableSet.AddressSet private distributions;
-
-
-    mapping(address => uint256) public distributionIntervals;
 
     // --- Errors ---
     error CannotDistributeYet(address rewDist);
@@ -73,12 +69,12 @@ contract VestRewardsDistributionJob is IJob {
     error RewardDistributionDoesNotExist(address rewDist);
 
     // --- Events ---
-    event Work(bytes32 indexed network, address rewDist, uint distAmounts);
+    event Work(bytes32 indexed network, address indexed rewDist, uint distAmounts);
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event AddRewardDistribution(address indexed rewDist, uint256 interval);
     event RemoveRewardDistribution(address indexed rewDist);
-    event ModifiedDistributionInterval(address indexed rewDist, uint256 interval);
+    event ModifyDistributionInterval(address indexed rewDist, uint256 interval);
 
     constructor(address _sequencer) {
         sequencer = SequencerLike(_sequencer);
@@ -102,7 +98,7 @@ contract VestRewardsDistributionJob is IJob {
     function modifyDistributionInterval(address rewDist, uint256 interval) external auth {
         if (!distributions.contains(rewDist)) revert RewardDistributionDoesNotExist(rewDist);
         distributionIntervals[rewDist] = interval;
-        emit ModifiedDistributionInterval(rewDist, interval);
+        emit ModifyDistributionInterval(rewDist, interval);
     }
 
     function work(bytes32 network, bytes calldata args) public {

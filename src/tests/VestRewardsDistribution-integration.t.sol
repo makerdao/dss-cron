@@ -29,6 +29,8 @@ interface DssVestLike {
     function unpaid(uint256 _id) external view returns (uint256 amt);
 }
 
+// Note: these tests run only in fork mode on a Tenderly virtual testnet
+// RPC URL: https://virtual.mainnet.rpc.tenderly.co/470dbf59-a384-4e77-974c-9430acb2fccb
 contract VestRewardsDistributionJobIntegrationTest is DssCronBaseTest {
     using GodMode for *;
 
@@ -39,10 +41,10 @@ contract VestRewardsDistributionJobIntegrationTest is DssCronBaseTest {
     VestRewardsDistributionJob public vestRewardsDistributionJob;
 
     // --- Events ---
-    event Work(bytes32 indexed network, address rewDist, uint distAmounts);
+    event Work(bytes32 indexed network, address indexed rewDist, uint distAmounts);
     event AddRewardDistribution(address indexed rewdist, uint256 interval);
     event RemoveRewardDistribution(address indexed rewDist);
-    event ModifiedDistributionInterval(address indexed rewDist, uint256 interval);
+    event ModifyDistributionInterval(address indexed rewDist, uint256 interval);
 
     function setUpSub() internal virtual override {
         vestRewardsDistributionJob =
@@ -99,7 +101,7 @@ contract VestRewardsDistributionJobIntegrationTest is DssCronBaseTest {
     function test_modify_distribution_interval() public {
         uint256 newInterval = RANDOM_INTERVAL + 1;
         vm.expectEmit(true, false, false, true);
-        emit ModifiedDistributionInterval(vestedRewardsDist1, newInterval);
+        emit ModifyDistributionInterval(vestedRewardsDist1, newInterval);
         vestRewardsDistributionJob.modifyDistributionInterval(vestedRewardsDist1, newInterval);
         assertEq(vestRewardsDistributionJob.distributionIntervals(vestedRewardsDist1), newInterval);
     }
@@ -201,5 +203,4 @@ contract VestRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         vm.expectRevert(abi.encodeWithSelector(VestRewardsDistributionJob.NoArgs.selector));
         vestRewardsDistributionJob.work(NET_A, emptyArray);
     }
-
 }
