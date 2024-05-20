@@ -102,20 +102,10 @@ contract D3MJob is IJob {
 
         bytes32[] memory ilks = ilkRegistry.list();
         for (uint256 i = 0; i < ilks.length; i++) {
-            bytes32 ilk = ilks[i];
-            address pool = hub.pool(ilk);
-
-            if (pool == address(0)) continue;     // Is this a D3M?
-
-            // Execute the D3M and see if the assets deployed change enough to warrant an update
-            (, uint256 part) = vat.urns(ilk, pool);
-            try hub.exec(ilk) {
-                (, uint256 nart) = vat.urns(ilk, pool);
-                if (block.timestamp < expiry[ilk]) continue;
-                if (!shouldTrigger(part, nart)) continue;
-
+            bytes memory args = abi.encode(ilks[i]);
+            try this.work(network, args) {
                 // Found a valid execution
-                return (true, abi.encode(ilk));
+                return (true, args);
             } catch {
                 // For some reason this errored -- carry on
             }
