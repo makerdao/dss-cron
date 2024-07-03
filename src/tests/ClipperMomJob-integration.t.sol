@@ -16,7 +16,7 @@
 pragma solidity 0.8.13;
 
 import "./DssCronBase.t.sol";
-import {ClipperMomAbstract,ClipAbstract,IlkRegistryAbstract} from "dss-interfaces/Interfaces.sol";
+import {ClipperMomAbstract,ClipAbstract} from "dss-interfaces/Interfaces.sol";
 
 import {ClipperMomJob} from "../ClipperMomJob.sol";
 
@@ -55,6 +55,16 @@ contract ClipperMomJobIntegrationTest is DssCronBaseTest {
 
     function test_no_break() public {
         // By default there should be no clipper that is triggerable except in the very rare circumstance of oracle attack
+        (bool canWork,) = clipperMomJob.workable(NET_A);
+        assertTrue(!canWork);
+    }
+
+    function test_no_break_invalid_xlip() public {
+        bytes32 ilk_ = ilk.clip.ilk();
+        vm.prank(dss.chainlog.getAddress("MCD_PAUSE_PROXY")); ilkRegistry.file(ilk_, "xlip", address(123));
+        assertEq(ilkRegistry.xlip(ilk_), address(123));
+
+        // Make sure that workable() still finishes even when the xlip is an empty code address which is not zero
         (bool canWork,) = clipperMomJob.workable(NET_A);
         assertTrue(!canWork);
     }
@@ -117,7 +127,6 @@ contract ClipperMomJobIntegrationTest is DssCronBaseTest {
         // Place a bad oracle price in the OSM
         set_bad_price(address(ilk.clip), address(ilk.pip));
 
-        IlkRegistryAbstract ilkRegistry = IlkRegistryAbstract(dss.chainlog.getAddress("ILK_REGISTRY"));
         bytes32 ilk_ = ilk.clip.ilk();
         assertEq(ilkRegistry.class(ilk_), 1);
 
@@ -130,5 +139,4 @@ contract ClipperMomJobIntegrationTest is DssCronBaseTest {
         assertEq(abi.decode(args, (address)), address(ilk.clip));
         assertEq(ilk.clip.stopped(), 2);
     }
-
 }
