@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.13;
 
-import "dss-test/DSSTest.sol";
+import "dss-test/DssTest.sol";
 import {IlkRegistryAbstract} from "dss-interfaces/Interfaces.sol";
 
 import {Sequencer} from "../Sequencer.sol";
@@ -23,7 +23,7 @@ import {LiquidatorJob} from "../LiquidatorJob.sol";
 import {LerpJob} from "../LerpJob.sol";
 
 // Integration tests against live MCD
-abstract contract DssCronBaseTest is DSSTest {
+abstract contract DssCronBaseTest is DssTest {
 
     using MCD for DssInstance;
 

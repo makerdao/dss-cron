@@ -1,0 +1,6 @@
+{
+  "litePsm": "address: the LitePSM instance address",
+  "rushThreshold": "uint256: the threhsold for rush",
+  "gushThreshold": "uint256: the threhsold for gush",
+  "cutThreshold": "uint256: the threhsold for cut"
+}
