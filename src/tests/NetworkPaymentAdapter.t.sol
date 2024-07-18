@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.13;
 
-import "dss-test/DSSTest.sol";
+import "dss-test/DssTest.sol";
 
 import {DaiMock} from "./mocks/DaiMock.sol";
 import {DaiJoinMock} from "./mocks/DaiJoinMock.sol";
@@ -64,7 +64,7 @@ contract TreasuryMock {
 
 }
 
-contract NetworkPaymentAdapterTest is DSSTest {
+contract NetworkPaymentAdapterTest is DssTest {
 
     uint256 constant VEST_ID = 123;
 
