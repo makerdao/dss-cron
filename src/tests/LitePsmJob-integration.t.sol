@@ -67,7 +67,7 @@ contract LitePsmJobIntegrationTest is DssCronBaseTest {
 
     function setUpSub() internal virtual override {
         litePsm = LitePsmLike(dss.chainlog.getAddress("MCD_LITE_PSM_USDC_A"));
-        pocket = dss.chainlog.getAddress("MCD_LITE_PSM_POCKET_USDC_A");
+        pocket = dss.chainlog.getAddress("MCD_LITE_PSM_USDC_A_POCKET");
         dai = dss.chainlog.getAddress("MCD_DAI");
         litePsmJob =
             new LitePsmJob(address(sequencer), address(litePsm), MILLION_WAD, MILLION_WAD, MILLION_WAD);
