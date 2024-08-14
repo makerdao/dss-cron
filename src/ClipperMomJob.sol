@@ -23,16 +23,7 @@ interface SequencerLike {
 
 interface IlkRegistryLike {
     function list() external view returns (bytes32[] memory);
-    function info(bytes32 ilk) external view returns (
-        string memory name,
-        string memory symbol,
-        uint256 class,
-        uint256 dec,
-        address gem,
-        address pip,
-        address join,
-        address xlip
-    );
+    function xlip(bytes32 ilk) external view returns (address);
 }
 
 interface ClipperMomLike {
@@ -72,8 +63,7 @@ contract ClipperMomJob is IJob {
         
         bytes32[] memory ilks = ilkRegistry.list();
         for (uint256 i = 0; i < ilks.length; i++) {
-            (,, uint256 class,,,,, address clip) = ilkRegistry.info(ilks[i]);
-            if (class != 1) continue;
+            address clip = ilkRegistry.xlip(ilks[i]);
             if (clip == address(0)) continue;
 
             // We cannot retrieve oracle prices (whitelist-only), so we have to just try and run the trip breaker

@@ -59,6 +59,16 @@ contract ClipperMomJobIntegrationTest is DssCronBaseTest {
         assertTrue(!canWork);
     }
 
+    function test_no_break_invalid_xlip() public {
+        bytes32 ilk_ = ilk.clip.ilk();
+        vm.prank(dss.chainlog.getAddress("MCD_PAUSE_PROXY")); ilkRegistry.file(ilk_, "xlip", address(123));
+        assertEq(ilkRegistry.xlip(ilk_), address(123));
+
+        // Make sure that workable() still finishes even when the xlip is an empty code address which is not zero
+        (bool canWork,) = clipperMomJob.workable(NET_A);
+        assertTrue(!canWork);
+    }
+
     function test_break() public {
         // Place a bad oracle price in the OSM
         set_bad_price(address(ilk.clip), address(ilk.pip));
@@ -112,4 +122,21 @@ contract ClipperMomJobIntegrationTest is DssCronBaseTest {
         assertEq(wethCClip.stopped(), 2);
     }
 
+    // An old ClipperMomJob implementation supported only class 1, check it now supports other classes
+    function test_break_other_class() public {
+        // Place a bad oracle price in the OSM
+        set_bad_price(address(ilk.clip), address(ilk.pip));
+
+        bytes32 ilk_ = ilk.clip.ilk();
+        assertEq(ilkRegistry.class(ilk_), 1);
+
+        vm.prank(dss.chainlog.getAddress("MCD_PAUSE_PROXY")); ilkRegistry.file(ilk_, "class", 7);
+        assertEq(ilkRegistry.class(ilk_), 7);
+
+        assertEq(ilk.clip.stopped(), 0);
+        (bool canWork, bytes memory args) = clipperMomJob.workable(NET_A);
+        assertTrue(canWork);
+        assertEq(abi.decode(args, (address)), address(ilk.clip));
+        assertEq(ilk.clip.stopped(), 2);
+    }
 }
