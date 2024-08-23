@@ -53,8 +53,8 @@ contract VestedRewardsDistributionJob is IJob {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event SetRewardsDistribution(address indexed dist, uint256 interval);
-    event RemoveRewardsDistribution(address indexed dist);
+    event Set(address indexed dist, uint256 interval);
+    event Rem(address indexed dist);
     event Work(bytes32 indexed network, address indexed dist, uint256 amount);
 
     constructor(address _sequencer) {
@@ -83,26 +83,26 @@ contract VestedRewardsDistributionJob is IJob {
     }
 
     // --- Rewards Distribution Admin ---
-    function setRewardsDistribution(address dist, uint256 interval) external auth {
+    function set(address dist, uint256 interval) external auth {
         if (interval == 0) revert InvalidInterval();
 
         if (!distributions.contains(dist)) distributions.add(dist);
         intervals[dist] = interval;
-        emit SetRewardsDistribution(dist, interval);
+        emit Set(dist, interval);
     }
 
-    function removeRewardsDistribution(address dist) external auth {
+    function rem(address dist) external auth {
         if (!distributions.remove(dist)) revert NotFound(dist);
 
         delete intervals[dist];
-        emit RemoveRewardsDistribution(dist);
+        emit Rem(dist);
     }
 
-    function hasRewardsDistribution(address dist) public view returns (bool) {
+    function has(address dist) public view returns (bool) {
         return distributions.contains(dist);
     }
 
-    function isRewardsDistributionDue(address dist) public view returns (bool) {
+    function due(address dist) public view returns (bool) {
         // Gets the last time distribute() was called
         uint256 last = VestedRewardsDistributionLike(dist).lastDistributedAt();
         // If `last == 0` (no distribution so far), we allow it to be distributed immediately,
@@ -111,6 +111,7 @@ contract VestedRewardsDistributionJob is IJob {
 
         uint256 vestId = VestedRewardsDistributionLike(dist).vestId();
         DssVestWithGemLike vest = VestedRewardsDistributionLike(dist).dssVest();
+        // Distribution is only due if there are unpaid tokens.
         return vest.unpaid(vestId) > 0;
     }
 
@@ -120,10 +121,10 @@ contract VestedRewardsDistributionJob is IJob {
         if (args.length == 0) revert NoArgs();
 
         (address dist) = abi.decode(args, (address));
-        // Prevents keeper from calling random contracts with a `distribute` method
-        if (!hasRewardsDistribution(dist)) revert NotFound(dist);
-        // Ensures that enough time has passed
-        if (!isRewardsDistributionDue(dist)) revert NotDue(dist);
+        // Prevents keeper from calling random contracts with a `distribute` method.
+        if (!has(dist)) revert NotFound(dist);
+        // Ensures that enough time has passed.
+        if (!due(dist)) revert NotDue(dist);
 
         uint256 amount = VestedRewardsDistributionLike(dist).distribute();
         emit Work(network, dist, amount);
@@ -135,7 +136,7 @@ contract VestedRewardsDistributionJob is IJob {
         uint256 len = distributions.length();
         for (uint256 i = 0; i < len; i++) {
             address dist = distributions.at(i);
-            if (!isRewardsDistributionDue(dist)) continue;
+            if (!due(dist)) continue;
 
             try this.work(network, abi.encode(dist)) {
                 return (true, abi.encode(dist));

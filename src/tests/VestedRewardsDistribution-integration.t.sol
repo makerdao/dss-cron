@@ -58,8 +58,8 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
     function setUpSub() internal virtual override {
         job = new VestedRewardsDistributionJob(address(sequencer));
         // add exisitng distros
-        job.setRewardsDistribution(address(vestedRewardsDist1), RANDOM_INTERVAL);
-        job.setRewardsDistribution(address(vestedRewardsDist2), RANDOM_INTERVAL);
+        job.set(address(vestedRewardsDist1), RANDOM_INTERVAL);
+        job.set(address(vestedRewardsDist2), RANDOM_INTERVAL);
 
         // Give admin access the test contract
         GodMode.setWard(address(vestedRewardsDist1), address(this), 1);
@@ -72,67 +72,65 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
     function test_add_rewards_distribution() public {
         address rewardsDist = address(0); //test address
         vm.expectEmit(true, false, false, true);
-        emit SetRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
-        job.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
-        assertTrue(job.hasRewardsDistribution(rewardsDist));
+        emit Set(rewardsDist, RANDOM_INTERVAL);
+        job.set(rewardsDist, RANDOM_INTERVAL);
+        assertTrue(job.has(rewardsDist));
         assertEq(job.intervals(rewardsDist), RANDOM_INTERVAL);
     }
 
     function test_add_rewards_distribution_revert_auth() public {
         vm.prank(address(1));
         vm.expectRevert("VestedRewardsDistributionJob/not-authorized");
-        job.setRewardsDistribution(address(0), RANDOM_INTERVAL);
+        job.set(address(0), RANDOM_INTERVAL);
     }
 
     function test_add_rewards_distribution_overwrite_duplicate() public {
         address rewardsDist = address(0); //test address
-        job.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
-        job.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL + 1);
+        job.set(rewardsDist, RANDOM_INTERVAL);
+        job.set(rewardsDist, RANDOM_INTERVAL + 1);
 
         assertEq(job.intervals(rewardsDist), RANDOM_INTERVAL + 1);
     }
 
     function test_remove_rewards_distribution() public {
         address rewardsDist = address(0); //test address
-        job.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
+        job.set(rewardsDist, RANDOM_INTERVAL);
         vm.expectEmit(true, false, false, false);
-        emit RemoveRewardsDistribution(rewardsDist);
-        job.removeRewardsDistribution(rewardsDist);
-        assertFalse(job.hasRewardsDistribution(rewardsDist));
+        emit Rem(rewardsDist);
+        job.rem(rewardsDist);
+        assertFalse(job.has(rewardsDist));
         assertEq(job.intervals(rewardsDist), 0);
     }
 
     function test_remove_rewards_distribution_revert_auth() public {
         vm.prank(address(1));
         vm.expectRevert("VestedRewardsDistributionJob/not-authorized");
-        job.removeRewardsDistribution(address(0));
+        job.rem(address(0));
     }
 
     function test_remove_rewards_distribution_revert_not_found() public {
         address rewardsDist = address(0); //test address
-        vm.expectRevert(
-            abi.encodeWithSelector(VestedRewardsDistributionJob.NotFound.selector, rewardsDist)
-        );
-        job.removeRewardsDistribution(rewardsDist);
+        vm.expectRevert(abi.encodeWithSelector(VestedRewardsDistributionJob.NotFound.selector, rewardsDist));
+        job.rem(rewardsDist);
     }
 
     function test_modify_distribution_interval() public {
         uint256 newInterval = RANDOM_INTERVAL + 1;
         vm.expectEmit(true, false, false, true);
-        emit SetRewardsDistribution(address(vestedRewardsDist1), newInterval);
-        job.setRewardsDistribution(address(vestedRewardsDist1), newInterval);
+        emit Set(address(vestedRewardsDist1), newInterval);
+        job.set(address(vestedRewardsDist1), newInterval);
         assertEq(job.intervals(address(vestedRewardsDist1)), newInterval);
     }
 
     function test_modify_distribution_interval_revert_auth() public {
         vm.prank(address(1));
         vm.expectRevert("VestedRewardsDistributionJob/not-authorized");
-        job.setRewardsDistribution(address(vestedRewardsDist1), RANDOM_INTERVAL);
+        job.set(address(vestedRewardsDist1), RANDOM_INTERVAL);
     }
 
     function test_modify_distribution_interval_revert_invalid_arg() public {
         vm.expectRevert(abi.encodeWithSelector(VestedRewardsDistributionJob.InvalidInterval.selector));
-        job.setRewardsDistribution(address(vestedRewardsDist1), 0);
+        job.set(address(vestedRewardsDist1), 0);
     }
 
     function test_work() public {
@@ -140,8 +138,8 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         uint256 total = 100 ether;
         uint256 interval = 7 days;
 
-        job.setRewardsDistribution(address(vestedRewardsDist1), interval);
-        job.removeRewardsDistribution(address(vestedRewardsDist2));
+        job.set(address(vestedRewardsDist1), interval);
+        job.rem(address(vestedRewardsDist2));
         DssVestLike vest = DssVestLike(vestedRewardsDist1.dssVest());
         uint256 vestId = _replaceVestingStream(
             address(vestedRewardsDist1), VestParams({bgn: block.timestamp, eta: 0, tau: duration, tot: total})
@@ -266,8 +264,8 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
         // Advances time and try to execute the job once again for both
         uint256 prevTimestamp = block.timestamp;
-        job.setRewardsDistribution(address(vestedRewardsDist1), 7 days);
-        job.setRewardsDistribution(address(vestedRewardsDist2), 7 days);
+        job.set(address(vestedRewardsDist1), 7 days);
+        job.set(address(vestedRewardsDist2), 7 days);
 
         // workable should return false because not enough time has elapsed
         skip(2 days);
@@ -323,8 +321,8 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         uint256 duration = 360 days;
         uint256 total = 100 ether;
 
-        job.removeRewardsDistribution(address(vestedRewardsDist1));
-        job.removeRewardsDistribution(address(vestedRewardsDist2));
+        job.rem(address(vestedRewardsDist1));
+        job.rem(address(vestedRewardsDist2));
 
         // Ensures the vesting stream is valid
         uint256 vestId = _replaceVestingStream(
@@ -333,7 +331,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         DssVestLike vest = DssVestLike(vestedRewardsDist1.dssVest());
 
         RevertOnDistributeWrapper dist = new RevertOnDistributeWrapper(address(vestedRewardsDist1));
-        job.setRewardsDistribution(address(dist), RANDOM_INTERVAL);
+        job.set(address(dist), RANDOM_INTERVAL);
 
         // Since this would be the first distribution, the interval cannot be easily enforced,
         // so the job would be workable if distribute did not revert
@@ -376,18 +374,14 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
     function test_work_revert_random_distribution() public {
         address rewDist = address(42);
         bytes memory args = abi.encode(rewDist);
-        vm.expectRevert(
-            abi.encodeWithSelector(VestedRewardsDistributionJob.NotFound.selector, rewDist)
-        );
+        vm.expectRevert(abi.encodeWithSelector(VestedRewardsDistributionJob.NotFound.selector, rewDist));
         job.work(NET_A, args);
     }
 
     function test_work_revert_garbage_args() public {
         bytes memory args = abi.encode(0x74389);
         (address rewDist) = abi.decode(args, (address));
-        vm.expectRevert(
-            abi.encodeWithSelector(VestedRewardsDistributionJob.NotFound.selector, rewDist)
-        );
+        vm.expectRevert(abi.encodeWithSelector(VestedRewardsDistributionJob.NotFound.selector, rewDist));
         job.work(NET_A, args);
     }
 
@@ -421,8 +415,8 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
     // --- Events ---
     event Work(bytes32 indexed network, address indexed rewDist, uint256 amount);
-    event SetRewardsDistribution(address indexed rewdist, uint256 interval);
-    event RemoveRewardsDistribution(address indexed rewDist);
+    event Set(address indexed rewdist, uint256 interval);
+    event Rem(address indexed rewDist);
 }
 
 contract RevertOnDistributeWrapper {
