@@ -132,14 +132,15 @@ contract VestedRewardsDistributionJob is IJob {
     function workable(bytes32 network) external override returns (bool, bytes memory) {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
 
+        uint256 len = distributions.length();
         for (uint256 i = 0; i < len; i++) {
             address dist = distributions.at(i);
-            if (isRewardsDistributionDue(dist)) {
-                try this.work(network, abi.encode(dist)) {
-                    return (true, abi.encode(dist));
-                } catch {
-                    // Keeps on looking
-                }
+            if (!isRewardsDistributionDue(dist)) continue;
+
+            try this.work(network, abi.encode(dist)) {
+                return (true, abi.encode(dist));
+            } catch {
+                continue;
             }
         }
         return (false, bytes("No distribution"));
