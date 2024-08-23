@@ -51,12 +51,11 @@ contract VestedRewardsDistributionJob is IJob {
     error NotFound(address dist);
 
     // --- Events ---
-    event Work(bytes32 indexed network, address indexed dist, uint256 distAmounts);
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event SetRewardsDistribution(address indexed dist, uint256 interval);
     event RemoveRewardsDistribution(address indexed dist);
-    event ModifyDistributionInterval(address indexed dist, uint256 interval);
+    event Work(bytes32 indexed network, address indexed dist, uint256 amount);
 
     constructor(address _sequencer) {
         sequencer = SequencerLike(_sequencer);
@@ -66,6 +65,11 @@ contract VestedRewardsDistributionJob is IJob {
     }
 
     // --- Auth ---
+    modifier auth() {
+        require(wards[msg.sender] == 1, "VestedRewardsDistributionJob/not-authorized");
+        _;
+    }
+
     function rely(address usr) external auth {
         wards[usr] = 1;
 
@@ -76,11 +80,6 @@ contract VestedRewardsDistributionJob is IJob {
         wards[usr] = 0;
 
         emit Deny(usr);
-    }
-
-    modifier auth() {
-        require(wards[msg.sender] == 1, "VestedRewardsDistributionJob/not-authorized");
-        _;
     }
 
     // --- Rewards Distribution Admin ---
@@ -99,57 +98,53 @@ contract VestedRewardsDistributionJob is IJob {
         emit RemoveRewardsDistribution(dist);
     }
 
-    function hasRewardsDistribution(address dist) external view returns (bool) {
+    function hasRewardsDistribution(address dist) public view returns (bool) {
         return distributions.contains(dist);
     }
 
     function isRewardsDistributionDue(address dist) public view returns (bool) {
         // Gets the last time distribute() was called
-        uint256 distTimestamp = VestedRewardsDistributionLike(dist).lastDistributedAt();
-        // If `distTimestamp == 0` (first distribution), we allow it to be distributed immediately
-        // Otherwise, if enough time has elapsed since the latest distribution, we also can distribute
-        if (distTimestamp == 0 || block.timestamp >= distTimestamp + intervals[dist]) {
-            uint256 vestId = VestedRewardsDistributionLike(dist).vestId();
-            DssVestWithGemLike dssVest = VestedRewardsDistributionLike(dist).dssVest();
-            if (dssVest.unpaid(vestId) > 0) return true;
-        }
-        return false;
+        uint256 last = VestedRewardsDistributionLike(dist).lastDistributedAt();
+        // If `last == 0` (no distribution so far), we allow it to be distributed immediately,
+        // otherwise, we can only distribute if enough time has elapsed since the last one.
+        if (last != 0 && block.timestamp < last + intervals[dist]) return false;
+
+        uint256 vestId = VestedRewardsDistributionLike(dist).vestId();
+        DssVestWithGemLike vest = VestedRewardsDistributionLike(dist).dssVest();
+        return vest.unpaid(vestId) > 0;
     }
 
-    // --- Keeper network interface ---
-
+    // --- Keeper Network Interface ---
     function work(bytes32 network, bytes calldata args) external {
         if (!sequencer.isMaster(network)) revert NotMaster(network);
         if (args.length == 0) revert NoArgs();
 
         (address dist) = abi.decode(args, (address));
-
-        // Prevents keeper from calling random contracts having distribute()
-        if (!distributions.contains(dist)) revert NotFound(dist);
-        // Ensures that the right time has elapsed
+        // Prevents keeper from calling random contracts with a `distribute` method
+        if (!hasRewardsDistribution(dist)) revert NotFound(dist);
+        // Ensures that enough time has passed
         if (!isRewardsDistributionDue(dist)) revert NotDue(dist);
-        // Omits checking the unpaid amount because if it is 0 it will revert during distribute()
-        uint256 distAmount = VestedRewardsDistributionLike(dist).distribute();
-        emit Work(network, dist, distAmount);
+
+        uint256 amount = VestedRewardsDistributionLike(dist).distribute();
+        emit Work(network, dist, amount);
     }
 
     function workable(bytes32 network) external override returns (bool, bytes memory) {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
 
         uint256 len = distributions.length();
-        if (len > 0) {
-            for (uint256 i = 0; i < len; i++) {
-                address dist = distributions.at(i);
-                if (isRewardsDistributionDue(dist)) {
-                    try this.work(network, abi.encode(dist)) {
-                        return (true, abi.encode(dist));
-                    } catch {
-                        // Keeps on looking
-                    }
+        if (len == 0) return (false, bytes("No farms"));
+
+        for (uint256 i = 0; i < len; i++) {
+            address dist = distributions.at(i);
+            if (isRewardsDistributionDue(dist)) {
+                try this.work(network, abi.encode(dist)) {
+                    return (true, abi.encode(dist));
+                } catch {
+                    // Keeps on looking
                 }
             }
-            return (false, bytes("No distribution"));
         }
-        return (false, bytes("No farms"));
+        return (false, bytes("No distribution"));
     }
 }

@@ -429,7 +429,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
     }
 
     // --- Events ---
-    event Work(bytes32 indexed network, address indexed rewDist, uint256 distAmounts);
+    event Work(bytes32 indexed network, address indexed rewDist, uint256 amount);
     event SetRewardsDistribution(address indexed rewdist, uint256 interval);
     event RemoveRewardsDistribution(address indexed rewDist);
 }
