@@ -53,13 +53,13 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
     VestedRewardsDistributionLike public constant vestedRewardsDist2 =
         VestedRewardsDistributionLike(0x53E15917309385Ec8235a5d025A8BeDa2fd0BE3E);
 
-    VestedRewardsDistributionJob public vestRewardsDistributionJob;
+    VestedRewardsDistributionJob public job;
 
     function setUpSub() internal virtual override {
-        vestRewardsDistributionJob = new VestedRewardsDistributionJob(address(sequencer));
+        job = new VestedRewardsDistributionJob(address(sequencer));
         // add exisitng distros
-        vestRewardsDistributionJob.setRewardsDistribution(address(vestedRewardsDist1), RANDOM_INTERVAL);
-        vestRewardsDistributionJob.setRewardsDistribution(address(vestedRewardsDist2), RANDOM_INTERVAL);
+        job.setRewardsDistribution(address(vestedRewardsDist1), RANDOM_INTERVAL);
+        job.setRewardsDistribution(address(vestedRewardsDist2), RANDOM_INTERVAL);
 
         // Give admin access the test contract
         GodMode.setWard(address(vestedRewardsDist1), address(this), 1);
@@ -73,39 +73,39 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         address rewardsDist = address(0); //test address
         vm.expectEmit(true, false, false, true);
         emit SetRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
-        vestRewardsDistributionJob.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
-        assertTrue(vestRewardsDistributionJob.hasRewardsDistribution(rewardsDist));
-        assertEq(vestRewardsDistributionJob.intervals(rewardsDist), RANDOM_INTERVAL);
+        job.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
+        assertTrue(job.hasRewardsDistribution(rewardsDist));
+        assertEq(job.intervals(rewardsDist), RANDOM_INTERVAL);
     }
 
     function test_add_rewards_distribution_revert_auth() public {
         vm.prank(address(1));
         vm.expectRevert("VestedRewardsDistributionJob/not-authorized");
-        vestRewardsDistributionJob.setRewardsDistribution(address(0), RANDOM_INTERVAL);
+        job.setRewardsDistribution(address(0), RANDOM_INTERVAL);
     }
 
     function test_add_rewards_distribution_overwrite_duplicate() public {
         address rewardsDist = address(0); //test address
-        vestRewardsDistributionJob.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
-        vestRewardsDistributionJob.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL + 1);
+        job.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
+        job.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL + 1);
 
-        assertEq(vestRewardsDistributionJob.intervals(rewardsDist), RANDOM_INTERVAL + 1);
+        assertEq(job.intervals(rewardsDist), RANDOM_INTERVAL + 1);
     }
 
     function test_remove_rewards_distribution() public {
         address rewardsDist = address(0); //test address
-        vestRewardsDistributionJob.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
+        job.setRewardsDistribution(rewardsDist, RANDOM_INTERVAL);
         vm.expectEmit(true, false, false, false);
         emit RemoveRewardsDistribution(rewardsDist);
-        vestRewardsDistributionJob.removeRewardsDistribution(rewardsDist);
-        assertFalse(vestRewardsDistributionJob.hasRewardsDistribution(rewardsDist));
-        assertEq(vestRewardsDistributionJob.intervals(rewardsDist), 0);
+        job.removeRewardsDistribution(rewardsDist);
+        assertFalse(job.hasRewardsDistribution(rewardsDist));
+        assertEq(job.intervals(rewardsDist), 0);
     }
 
     function test_remove_rewards_distribution_revert_auth() public {
         vm.prank(address(1));
         vm.expectRevert("VestedRewardsDistributionJob/not-authorized");
-        vestRewardsDistributionJob.removeRewardsDistribution(address(0));
+        job.removeRewardsDistribution(address(0));
     }
 
     function test_remove_rewards_distribution_revert_not_found() public {
@@ -113,26 +113,26 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         vm.expectRevert(
             abi.encodeWithSelector(VestedRewardsDistributionJob.NotFound.selector, rewardsDist)
         );
-        vestRewardsDistributionJob.removeRewardsDistribution(rewardsDist);
+        job.removeRewardsDistribution(rewardsDist);
     }
 
     function test_modify_distribution_interval() public {
         uint256 newInterval = RANDOM_INTERVAL + 1;
         vm.expectEmit(true, false, false, true);
         emit SetRewardsDistribution(address(vestedRewardsDist1), newInterval);
-        vestRewardsDistributionJob.setRewardsDistribution(address(vestedRewardsDist1), newInterval);
-        assertEq(vestRewardsDistributionJob.intervals(address(vestedRewardsDist1)), newInterval);
+        job.setRewardsDistribution(address(vestedRewardsDist1), newInterval);
+        assertEq(job.intervals(address(vestedRewardsDist1)), newInterval);
     }
 
     function test_modify_distribution_interval_revert_auth() public {
         vm.prank(address(1));
         vm.expectRevert("VestedRewardsDistributionJob/not-authorized");
-        vestRewardsDistributionJob.setRewardsDistribution(address(vestedRewardsDist1), RANDOM_INTERVAL);
+        job.setRewardsDistribution(address(vestedRewardsDist1), RANDOM_INTERVAL);
     }
 
     function test_modify_distribution_interval_revert_invalid_arg() public {
         vm.expectRevert(abi.encodeWithSelector(VestedRewardsDistributionJob.InvalidInterval.selector));
-        vestRewardsDistributionJob.setRewardsDistribution(address(vestedRewardsDist1), 0);
+        job.setRewardsDistribution(address(vestedRewardsDist1), 0);
     }
 
     function test_work() public {
@@ -140,8 +140,8 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         uint256 total = 100 ether;
         uint256 interval = 7 days;
 
-        vestRewardsDistributionJob.setRewardsDistribution(address(vestedRewardsDist1), interval);
-        vestRewardsDistributionJob.removeRewardsDistribution(address(vestedRewardsDist2));
+        job.setRewardsDistribution(address(vestedRewardsDist1), interval);
+        job.removeRewardsDistribution(address(vestedRewardsDist2));
         DssVestLike vest = DssVestLike(vestedRewardsDist1.dssVest());
         uint256 vestId = _replaceVestingStream(
             address(vestedRewardsDist1), VestParams({bgn: block.timestamp, eta: 0, tau: duration, tot: total})
@@ -149,7 +149,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
         // Workable should return false because vest.unpaid(vestId) == 0
         {
-            (bool canWork,) = vestRewardsDistributionJob.workable(NET_A);
+            (bool canWork,) = job.workable(NET_A);
             assertFalse(canWork, "initial: workable() should return false");
         }
 
@@ -158,7 +158,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
             skip(2 days);
             // Workable now modifies state, so we need this hack to make the test pass.
             uint256 beforeWorkable = vm.snapshot();
-            (bool canWork, bytes memory args) = vestRewardsDistributionJob.workable(NET_A);
+            (bool canWork, bytes memory args) = job.workable(NET_A);
             vm.revertTo(beforeWorkable);
 
             assertTrue(canWork, "1st distribution before interval has passed: workable() should return true");
@@ -166,7 +166,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
             vm.expectEmit(true, false, false, true);
             emit Work(NET_A, rewDist, vest.unpaid(vestId));
-            vestRewardsDistributionJob.work(NET_A, args);
+            job.work(NET_A, args);
 
             // Checks that there is no vesting amount to be paid
             assertEq(vest.unpaid(vestId), 0, "1st distribution before interval has passed: unexpected unpaid amount");
@@ -179,7 +179,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
             // Workable now modifies state, so we need this hack to make the test pass.
             uint256 beforeWorkable = vm.snapshot();
-            (bool canWork, bytes memory args) = vestRewardsDistributionJob.workable(NET_A);
+            (bool canWork, bytes memory args) = job.workable(NET_A);
             vm.revertTo(beforeWorkable);
 
             assertFalse(canWork, "before 2nd distribution: workable() should return false");
@@ -188,7 +188,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
             vm.expectRevert(
                 abi.encodeWithSelector(VestedRewardsDistributionJob.NotDue.selector, address(vestedRewardsDist1))
             );
-            vestRewardsDistributionJob.work(NET_A, abi.encode(address(vestedRewardsDist1)));
+            job.work(NET_A, abi.encode(address(vestedRewardsDist1)));
         }
 
         // Now enough time has passed, so the distribution can be made
@@ -197,7 +197,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
             // Workable now modifies state, so we need this hack to make the test pass.
             uint256 beforeWorkable = vm.snapshot();
-            (bool canWork, bytes memory args) = vestRewardsDistributionJob.workable(NET_A);
+            (bool canWork, bytes memory args) = job.workable(NET_A);
             vm.revertTo(beforeWorkable);
 
             assertTrue(canWork, "2nd distribution: workable() should return true");
@@ -205,7 +205,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
             vm.expectEmit(true, false, false, true);
             emit Work(NET_A, rewDist, vest.unpaid(vestId));
-            vestRewardsDistributionJob.work(NET_A, args);
+            job.work(NET_A, args);
 
             // Checks that there is no vesting amount to be paid
             assertEq(vest.unpaid(vestId), 0, "2nd distribution: unexpected unpaid amount");
@@ -220,7 +220,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
             // Workable now modifies state, so we need this hack to make the test pass.
             uint256 beforeWorkable = vm.snapshot();
-            (bool canWork, bytes memory args) = vestRewardsDistributionJob.workable(NET_A);
+            (bool canWork, bytes memory args) = job.workable(NET_A);
             vm.revertTo(beforeWorkable);
 
             assertFalse(canWork, "after stream expiration: workable() should return false");
@@ -248,26 +248,26 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
             // Workable now modifies state, so we need this hack to make the test pass.
             uint256 beforeWorkable = vm.snapshot();
-            (, bytes memory args) = vestRewardsDistributionJob.workable(NET_A);
+            (, bytes memory args) = job.workable(NET_A);
             vm.revertTo(beforeWorkable);
 
             (address rewDist) = abi.decode(args, (address));
             vm.expectEmit(true, false, false, true);
             emit Work(NET_A, rewDist, vestAmounts[i]);
-            vestRewardsDistributionJob.work(NET_A, args);
+            job.work(NET_A, args);
 
             // check that there is no vesting amount to be paid
             uint256 vestAmount = vest.unpaid(vestId);
             assertEq(vestAmount, 0);
         }
         // now workable should return false
-        (bool canWork,) = vestRewardsDistributionJob.workable(NET_A);
+        (bool canWork,) = job.workable(NET_A);
         assertFalse(canWork, "after 1st: workable() returns true");
 
         // Advances time and try to execute the job once again for both
         uint256 prevTimestamp = block.timestamp;
-        vestRewardsDistributionJob.setRewardsDistribution(address(vestedRewardsDist1), 7 days);
-        vestRewardsDistributionJob.setRewardsDistribution(address(vestedRewardsDist2), 7 days);
+        job.setRewardsDistribution(address(vestedRewardsDist1), 7 days);
+        job.setRewardsDistribution(address(vestedRewardsDist2), 7 days);
 
         // workable should return false because not enough time has elapsed
         skip(2 days);
@@ -282,7 +282,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
             // Workable now modifies state, so we need this hack to make the test pass.
             uint256 beforeWorkable = vm.snapshot();
-            (canWork,) = vestRewardsDistributionJob.workable(NET_A);
+            (canWork,) = job.workable(NET_A);
             vm.revertTo(beforeWorkable);
 
             assertFalse(canWork, "after 1st: workable() returns true");
@@ -301,13 +301,13 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
             // Workable now modifies state, so we need this hack to make the test pass.
             uint256 beforeWorkable = vm.snapshot();
-            (, bytes memory args) = vestRewardsDistributionJob.workable(NET_A);
+            (, bytes memory args) = job.workable(NET_A);
             vm.revertTo(beforeWorkable);
 
             (address rewDist) = abi.decode(args, (address));
             vm.expectEmit(true, false, false, true);
             emit Work(NET_A, rewDist, vestAmounts[i]);
-            vestRewardsDistributionJob.work(NET_A, args);
+            job.work(NET_A, args);
 
             // check that there is no vesting amount to be paid
             uint256 vestAmount = vest.unpaid(dist.vestId());
@@ -315,7 +315,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         }
 
         // now workable should return false
-        (canWork,) = vestRewardsDistributionJob.workable(NET_A);
+        (canWork,) = job.workable(NET_A);
         assertFalse(canWork, "after 2nd: workable() returns true");
     }
 
@@ -323,8 +323,8 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         uint256 duration = 360 days;
         uint256 total = 100 ether;
 
-        vestRewardsDistributionJob.removeRewardsDistribution(address(vestedRewardsDist1));
-        vestRewardsDistributionJob.removeRewardsDistribution(address(vestedRewardsDist2));
+        job.removeRewardsDistribution(address(vestedRewardsDist1));
+        job.removeRewardsDistribution(address(vestedRewardsDist2));
 
         // Ensures the vesting stream is valid
         uint256 vestId = _replaceVestingStream(
@@ -333,7 +333,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         DssVestLike vest = DssVestLike(vestedRewardsDist1.dssVest());
 
         RevertOnDistributeWrapper dist = new RevertOnDistributeWrapper(address(vestedRewardsDist1));
-        vestRewardsDistributionJob.setRewardsDistribution(address(dist), RANDOM_INTERVAL);
+        job.setRewardsDistribution(address(dist), RANDOM_INTERVAL);
 
         // Since this would be the first distribution, the interval cannot be easily enforced,
         // so the job would be workable if distribute did not revert
@@ -343,34 +343,25 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
 
             // Workable now modifies state, so we need this hack to make the test pass.
             uint256 beforeWorkable = vm.snapshot();
-            (bool canWork, bytes memory args) = vestRewardsDistributionJob.workable(NET_A);
+            (bool canWork, bytes memory args) = job.workable(NET_A);
             vm.revertTo(beforeWorkable);
 
             assertFalse(canWork, "workable() should return false");
             assertEq(args, bytes("No distribution"));
 
             vm.expectRevert("Cannot distribute");
-            vestRewardsDistributionJob.work(NET_A, abi.encode(address(dist)));
+            job.work(NET_A, abi.encode(address(dist)));
         }
-    }
-
-    function test_workable_no_farms() public {
-        // remove distributions
-        vestRewardsDistributionJob.removeRewardsDistribution(address(vestedRewardsDist1));
-        vestRewardsDistributionJob.removeRewardsDistribution(address(vestedRewardsDist2));
-        (bool canWork, bytes memory args) = vestRewardsDistributionJob.workable(NET_A);
-        assertFalse(canWork, "workable() returns true");
-        assertEq(args, bytes("No farms"), "Wrong message");
     }
 
     function test_workable_no_distribution() public {
         // call work for both contracts
         bytes memory args = abi.encode(address(vestedRewardsDist1));
-        vestRewardsDistributionJob.work(NET_A, args);
+        job.work(NET_A, args);
         args = abi.encode(vestedRewardsDist2);
-        vestRewardsDistributionJob.work(NET_A, args);
+        job.work(NET_A, args);
         bool canWork;
-        (canWork, args) = vestRewardsDistributionJob.workable(NET_A);
+        (canWork, args) = job.workable(NET_A);
         assertFalse(canWork, "workable() returns true");
         assertEq(args, bytes("No distribution"), "Wrong message");
     }
@@ -379,7 +370,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         bytes32 network = "ERROR";
         bytes memory args = abi.encode("0");
         vm.expectRevert(abi.encodeWithSelector(VestedRewardsDistributionJob.NotMaster.selector, network));
-        vestRewardsDistributionJob.work(network, args);
+        job.work(network, args);
     }
 
     function test_work_revert_random_distribution() public {
@@ -388,7 +379,7 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         vm.expectRevert(
             abi.encodeWithSelector(VestedRewardsDistributionJob.NotFound.selector, rewDist)
         );
-        vestRewardsDistributionJob.work(NET_A, args);
+        job.work(NET_A, args);
     }
 
     function test_work_revert_garbage_args() public {
@@ -397,14 +388,14 @@ contract VestedRewardsDistributionJobIntegrationTest is DssCronBaseTest {
         vm.expectRevert(
             abi.encodeWithSelector(VestedRewardsDistributionJob.NotFound.selector, rewDist)
         );
-        vestRewardsDistributionJob.work(NET_A, args);
+        job.work(NET_A, args);
     }
 
     function test_work_revert_no_args() public {
         bytes memory emptyArray;
         // empty array, work() should revert
         vm.expectRevert(abi.encodeWithSelector(VestedRewardsDistributionJob.NoArgs.selector));
-        vestRewardsDistributionJob.work(NET_A, emptyArray);
+        job.work(NET_A, emptyArray);
     }
 
     struct VestParams {

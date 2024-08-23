@@ -132,9 +132,6 @@ contract VestedRewardsDistributionJob is IJob {
     function workable(bytes32 network) external override returns (bool, bytes memory) {
         if (!sequencer.isMaster(network)) return (false, bytes("Network is not master"));
 
-        uint256 len = distributions.length();
-        if (len == 0) return (false, bytes("No farms"));
-
         for (uint256 i = 0; i < len; i++) {
             address dist = distributions.at(i);
             if (isRewardsDistributionDue(dist)) {
