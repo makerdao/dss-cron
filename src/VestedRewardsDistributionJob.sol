@@ -42,9 +42,9 @@ contract VestedRewardsDistributionJob is IJob {
 
     /// @notice Address with admin access to this contract. wards[usr].
     mapping(address => uint256) public wards;
-    /// @notice Minimum intervals between distributions for each dist contract. intervals[dist].
+    /// @notice Minimum intervals between distributions for each distribution contract. intervals[dist].
     mapping(address => uint256) public intervals;
-    /// @notice Iterable set of dist contracts added to the job.
+    /// @notice Iterable set of distribution contracts added to the job.
     EnumerableSet.AddressSet private distributions;
 
     // --- Errors ---
@@ -56,11 +56,11 @@ contract VestedRewardsDistributionJob is IJob {
     error NotMaster(bytes32 network);
     /// @notice No args were provided to `work`.
     error NoArgs();
-    /// @notice Trying to set `dist` interval to zero.
+    /// @notice Trying to set the distribution contract interval to zero.
     error InvalidInterval();
     /// @notice `wark` was called too early or no vested amount is available.
     error NotDue(address dist);
-    /// @notice `dist` was not added to the job.
+    /// @notice The distribution contract was was not added to the job.
     error NotFound(address dist);
 
     // --- Events ---
@@ -77,19 +77,19 @@ contract VestedRewardsDistributionJob is IJob {
     event Deny(address indexed usr);
     /**
      * @notice A `VestedRewardsDistribution` contract was added to or modified in the job.
-     * @param dist The dist contract.
+     * @param dist The distribution contract.
      * @param interval The minimum interval between distributions.
      */
     event Set(address indexed dist, uint256 interval);
     /**
-     * @notice A dist contract was removed from the job.
-     * @param dist The removed dist contract.
+     * @notice A distribution contract was removed from the job.
+     * @param dist The removed distribution contract.
      */
     event Rem(address indexed dist);
     /**
-     * @notice A dist contract was removed from the job.
+     * @notice Work os executed for a distribution contract.
      * @param network The keeper who executed the job.
-     * @param dist The dist contract where the distribution was made.
+     * @param dist The distribution contract where the distribution was made.
      * @param amount The amount distributed.
      */
     event Work(bytes32 indexed network, address indexed dist, uint256 amount);
@@ -132,7 +132,7 @@ contract VestedRewardsDistributionJob is IJob {
     // --- Rewards Distribution Admin ---
 
     /**
-     * @notice Adds to the job or updates the interval for distribution for `dist`.
+     * @notice Sets the interval for the distribution contract in the job.
      * @dev `interval` MUST be greater than zero.
      * @param dist The distribution contract.
      * @param interval The interval for distribution.
@@ -146,7 +146,7 @@ contract VestedRewardsDistributionJob is IJob {
     }
 
     /**
-     * @notice Removes `dist` from the job.
+     * @notice Removes the distribution contract from the job.
      * @param dist The distribution contract.
      */
     function rem(address dist) external auth {
@@ -159,7 +159,7 @@ contract VestedRewardsDistributionJob is IJob {
     /**
      * @notice Checks if the job has the specified distribution contract.
      * @param dist The distribution contract.
-     * @return Whether `dist` is set in the job or not.
+     * @return Whether the distribution contract is set in the job or not.
      */
     function has(address dist) public view returns (bool) {
         return distributions.contains(dist);
