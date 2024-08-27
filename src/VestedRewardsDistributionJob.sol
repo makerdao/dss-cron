@@ -206,6 +206,11 @@ contract VestedRewardsDistributionJob is IJob {
 
     /**
      * @notice Checks if there is work to be done in the job.
+     * @dev Most providers define a gas limit for `eth_call` requests to prevent DoS.
+     *      Notice that hitting that limit is higly unlikely, as it would require hundreds or thousands of active
+     *      contracts in this job.
+     *      Keepers are expected to take that into consideration, especially if they are using self=hosted
+     *      infrastructure, which might have arbitrary values configured.
      * @param network The keeper identifier.
      * @return ok Whether it should execute or not.
      * @return args The args for execution.
