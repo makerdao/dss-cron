@@ -1,0 +1,6 @@
+{
+  "job": "address: the address of the job",
+  "distKey": "bytes32: the chainlog key for the dist contract",
+  "dist": "address: the address of the dist contract",
+  "interval": "number: the interval for distribution [seconds]"
+}

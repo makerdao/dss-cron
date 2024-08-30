@@ -1,1 +1,1 @@
-Inputs for Mainnet scripts.
+Inputs for Tenderly Testnets scripts.
