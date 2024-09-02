@@ -1,0 +1,5 @@
+{
+  "job": "address: the address of the job",
+  "dist": "address: the address of the dist contract",
+  "interval": "number: the interval for distribution [seconds]"
+}

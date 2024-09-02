@@ -1,0 +1,4 @@
+{
+  "job": "address: the address of the job",
+  "jobKey": "bytes32: the chainlog key for the job contract"
+}
