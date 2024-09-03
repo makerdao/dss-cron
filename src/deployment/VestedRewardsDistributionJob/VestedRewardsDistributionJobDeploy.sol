@@ -18,18 +18,18 @@ pragma solidity 0.8.13;
 import {ScriptTools} from "dss-test/ScriptTools.sol";
 import {VestedRewardsDistributionJob} from "src/VestedRewardsDistributionJob.sol";
 
-struct VestedRewardsDistributionJobDeployParams {
+struct VestedRewardsDistributionJobDeployConfig {
     address deployer;
     address owner;
     address sequencer;
 }
 
 library VestedRewardsDistributionJobDeploy {
-    function deploy(VestedRewardsDistributionJobDeployParams memory p)
+    function deploy(VestedRewardsDistributionJobDeployConfig memory cfg)
         internal
         returns (address job)
     {
-        job = address(new VestedRewardsDistributionJob({_sequencer: p.sequencer}));
-        ScriptTools.switchOwner(job, p.deployer, p.owner);
+        job = address(new VestedRewardsDistributionJob({_sequencer: cfg.sequencer}));
+        ScriptTools.switchOwner(job, cfg.deployer, cfg.owner);
     }
 }

@@ -21,7 +21,7 @@ import {MCD, DssInstance} from "dss-test/MCD.sol";
 import {ScriptTools} from "dss-test/ScriptTools.sol";
 import {
     VestedRewardsDistributionJobDeploy,
-    VestedRewardsDistributionJobDeployParams
+    VestedRewardsDistributionJobDeployConfig
 } from "src/deployment/VestedRewardsDistributionJob/VestedRewardsDistributionJobDeploy.sol";
 
 contract VestedRewardsDistributionJobDeployScript is Script {
@@ -39,7 +39,7 @@ contract VestedRewardsDistributionJobDeployScript is Script {
         vm.startBroadcast();
 
         address job =
-            VestedRewardsDistributionJobDeploy.deploy(VestedRewardsDistributionJobDeployParams({
+            VestedRewardsDistributionJobDeploy.deploy(VestedRewardsDistributionJobDeployConfig({
                 deployer: msg.sender,
                 owner: pauseProxy,
                 sequencer: sequencer
