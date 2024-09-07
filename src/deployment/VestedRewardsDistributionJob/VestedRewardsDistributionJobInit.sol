@@ -15,9 +15,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pragma solidity 0.8.13;
 
-import {ScriptTools} from "dss-test/ScriptTools.sol";
-import {VestedRewardsDistributionJob} from "src/VestedRewardsDistributionJob.sol";
-
 struct VestedRewardsDistributionJobInitConfig {
     bytes32 jobKey; // Chainlog key
 }
